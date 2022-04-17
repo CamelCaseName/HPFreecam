@@ -12,19 +12,24 @@ namespace HPFreecam
     {
         private FFreecam freecam;
 
-        public override void OnApplicationStart()
-        {
-            freecam = new FFreecam(Object.FindObjectOfType<Camera>(), false);
-        }
-
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            freecam = new FFreecam(Object.FindObjectsOfType<Camera>()[0], true);
+            foreach (var item in Object.FindObjectsOfType<Camera>())
+            {
+                if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera")
+                {
+                    freecam = new FFreecam(item, true);
+                    break;
+                }
+            }
         }
 
         public override void OnUpdate()
         {
-            freecam.OnUpdate();
+            if (freecam != null)
+            {
+                freecam.OnUpdate();
+            }
         }
     }
 
@@ -35,21 +40,30 @@ namespace HPFreecam
         private bool inCamera = true;
         private bool inGameMain = false;
         private bool isEnabled = false;
-        private bool useSecondCamera = true;
         private Camera camera = new Camera();
         private float rotX = 0f;
         private float rotY = 0f;
         private HousePartyPlayerCharacter player = null;
-        private Quaternion rot;
         private readonly float rotRes = 0.15f;
         private readonly float speed = 2.3f;
         private readonly PlayerControlManager PlayerControl = Object.FindObjectOfType<PlayerControlManager>();
-        private Vector3 pos;
 
-        public FFreecam(Camera camera, bool useSecond)
+        public FFreecam(Camera ccamera, bool useSecond)
         {
-            this.camera = camera;
-            useSecondCamera = useSecond;
+            if (useSecond)
+            {
+                camera = Object.Instantiate(ccamera);
+                camera.depth = -2;
+                //camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                camera.tag = "Second Camera";
+                camera.name = "Second Camera";
+                camera.enabled = false;
+                SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
+            }
+            else
+            {
+                camera = ccamera;
+            }
         }
 
         public void OnUpdate()
@@ -67,22 +81,41 @@ namespace HPFreecam
                 }
             }
 
-            //only concern about two cameras at once when in game main
-            if (inGameMain)
-            {
-                if (Keyboard.current[Key.LeftAlt].wasPressedThisFrame && Enabled() && inCamera)
-                {
-                    inCamera = false;
-                }
-                else if (Keyboard.current[Key.LeftAlt].wasReleasedThisFrame && Enabled())
-                {
-                    inCamera = true;
-                }
-            }
-
             //run freecam
-            if (Enabled())
+            if (isEnabled)
             {
+                //only concern about two cameras at once when in game main
+                if (inGameMain)
+                {
+                    if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed && inCamera)
+                    {
+                        inCamera = false;
+                        player.IsImmobile = false;
+                    }
+                    else if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
+                    {
+                        inCamera = true;
+                        player.IsImmobile = true;
+                    }
+                    if (Keyboard.current[Key.V].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
+                    {
+                        camera.transform.position = player.Head.transform.position;
+                        camera.transform.rotation = player.Head.transform.rotation;
+                    }
+                }
+                else
+                {
+                    if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed && inCamera)
+                    {
+                        inCamera = false;
+                        Screen.lockCursor = false;
+                    }
+                    else if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
+                    {
+                        inCamera = true;
+                        Screen.lockCursor = true;
+                    }
+                }
                 Update();
             }
         }
@@ -124,8 +157,8 @@ namespace HPFreecam
                 }
                 else
                 {
-                    rotY = PlayerControl.GetLookValue().x;
-                    rotX = PlayerControl.GetLookValue().y;
+                    rotY += PlayerControl.GetLookValue().x * 0.8f;
+                    rotX -= PlayerControl.GetLookValue().y * 0.8f;
                 }
 
                 camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
@@ -134,18 +167,7 @@ namespace HPFreecam
 
         public void SetEnabled()
         {
-            if (useSecondCamera)
-            {
-                camera = Object.Instantiate(camera);
-                camera.depth = -2;
-                //camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
-                camera.tag = "Second Camera";
-                camera.name = "Second Camera";
-                SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
-            }
-
-            pos = camera.transform.position;
-            rot = camera.transform.rotation;
+            camera.enabled = true;
 
             //move cameras to top left
             foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -153,6 +175,7 @@ namespace HPFreecam
                 if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera")
                 {
                     item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                    break;
                 }
             }
 
@@ -162,6 +185,7 @@ namespace HPFreecam
             if (inGameMain)
             {
                 player = Object.FindObjectOfType<HousePartyPlayerCharacter>();
+                player.IsImmobile = true;
             }
 
             isEnabled = true;
@@ -170,9 +194,6 @@ namespace HPFreecam
         public void SetDisabled()
         {
             camera.enabled = false;
-            camera.transform.position = pos;
-            camera.transform.rotation = rot;
-            isEnabled = false;
             Screen.lockCursor = false;
 
             //move cameras back
@@ -183,6 +204,13 @@ namespace HPFreecam
                     item.rect = new Rect(0, 0, 1, 1);
                 }
             }
+
+            if (player != null)
+            {
+                player.IsImmobile = false;
+            }
+
+            isEnabled = false;
         }
 
         public bool Enabled()
