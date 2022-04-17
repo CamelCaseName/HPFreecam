@@ -11,8 +11,6 @@ namespace HPFreecam
     public class Freecam : MelonMod
     {
         private FFreecam freecam;
-        public static bool inGameMain = false;
-        private HousePartyPlayerCharacter player = null;
 
         public override void OnApplicationStart()
         {
@@ -22,98 +20,77 @@ namespace HPFreecam
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
             freecam = new FFreecam(Object.FindObjectsOfType<Camera>()[0], true);
-
-            Scene scene = SceneManager.GetActiveScene();
-            inGameMain = scene.name == "GameMain";
-            if (inGameMain)
-            {
-                player = Object.FindObjectOfType<HousePartyPlayerCharacter>();
-            }
         }
 
         public override void OnUpdate()
         {
-            //toggle freecam with alt+f
-            if (Keyboard.current[Key.F].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
-            {
-                if (freecam.Enabled())
-                {
-                    freecam.SetDisabled();
-                    freecam.SetRotationDisabled();
-                    if (inGameMain)
-                    {
-                        player.IsImmobile = false;
-                        Camera temp_camera = Object.FindObjectOfType<Camera>();
-                        if ((temp_camera.transform.position - player.Head.position + new Vector3(0, 0.1f, 0) + Vector3.Scale(player.Head.forward, new Vector3(0.2f, 0.2f, 0.2f))).magnitude >= 0.3)
-                        {
-                            for (int i = 0; i < 10; i++)
-                            {
-                                temp_camera.transform.position = player.Head.position + new Vector3(0, 0.1f, 0) + Vector3.Scale(player.Head.forward, new Vector3(0.2f, 0.2f, 0.2f));
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    if (inGameMain)
-                    {
-                        player.IsImmobile = true;
-                    }
-                    else
-                    {
-                        freecam.SetRotationEnabled();
-                    }
-                    freecam.SetEnabled();
-                }
-
-            }
-
-            //run freecam
-            if (freecam.Enabled())
-            {
-                freecam.Update();
-            }
+            freecam.OnUpdate();
         }
     }
 
+    //yoink this class if you need a freecam
+    //or just use the mod alongside yours 
     internal class FFreecam
     {
+        private bool inCamera = true;
+        private bool inGameMain = false;
         private bool isEnabled = false;
-        private bool rotationEnabled = false;
+        private bool useSecondCamera = true;
         private Camera camera = new Camera();
-        private float speed = 2.3f;
-        private float speedr = 20f;
         private float rotX = 0f;
         private float rotY = 0f;
-        private Vector3 pos;
-        private Quaternion rot;
-        private bool inGameMain = false;
         private HousePartyPlayerCharacter player = null;
+        private Quaternion rot;
+        private readonly float rotRes = 0.15f;
+        private readonly float speed = 2.3f;
+        private readonly PlayerControlManager PlayerControl = Object.FindObjectOfType<PlayerControlManager>();
+        private Vector3 pos;
 
         public FFreecam(Camera camera, bool useSecond)
         {
             this.camera = camera;
-            ChangeCamera(useSecond);
+            useSecondCamera = useSecond;
         }
 
-        private void ChangeCamera(bool useSecondOne = false)
+        public void OnUpdate()
         {
-            if (useSecondOne)
+            //toggle freecam with alt+f
+            if (Keyboard.current[Key.F].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
             {
-                camera = Object.Instantiate(camera);
-                camera.depth = 10;
-                camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
-                camera.tag = "Second Camera";
-                camera.name = "Second Camera";
-                SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
-                
-                camera.enabled = false;
+                if (Enabled())
+                {
+                    SetDisabled();
+                }
+                else
+                {
+                    SetEnabled();
+                }
+            }
+
+            //only concern about two cameras at once when in game main
+            if (inGameMain)
+            {
+                if (Keyboard.current[Key.LeftAlt].wasPressedThisFrame && Enabled() && inCamera)
+                {
+                    inCamera = false;
+                }
+                else if (Keyboard.current[Key.LeftAlt].wasReleasedThisFrame && Enabled())
+                {
+                    inCamera = true;
+                }
+            }
+
+            //run freecam
+            if (Enabled())
+            {
+                Update();
             }
         }
 
         public void Update()
         {
-            if (isEnabled)
+            //only move when we are not moving the player
+            if (isEnabled && inCamera)
             {
                 if (Keyboard.current[Key.W].isPressed)
                 {
@@ -139,29 +116,55 @@ namespace HPFreecam
                 {
                     camera.transform.position -= camera.transform.up * speed * Time.deltaTime;
                 }
-                if (rotationEnabled)
+                //does not work in game when the player is loaded
+                if (!inGameMain)
                 {
                     rotY += Mouse.current.delta.ReadValue().x;
                     rotX -= Mouse.current.delta.ReadValue().y;
-
-                    camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler( new Vector3(rotX , rotY, 0)), speedr * Time.deltaTime);
                 }
+                else
+                {
+                    rotY = PlayerControl.GetLookValue().x;
+                    rotX = PlayerControl.GetLookValue().y;
+                }
+
+                camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
             }
         }
 
         public void SetEnabled()
         {
-            camera.enabled = true;
+            if (useSecondCamera)
+            {
+                camera = Object.Instantiate(camera);
+                camera.depth = -2;
+                //camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                camera.tag = "Second Camera";
+                camera.name = "Second Camera";
+                SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
+            }
+
             pos = camera.transform.position;
             rot = camera.transform.rotation;
-            isEnabled = true;
-            //Screen.lockCursor = false;
+
+            //move cameras to top left
+            foreach (var item in Object.FindObjectsOfType<Camera>())
+            {
+                if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera")
+                {
+                    item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                }
+            }
+
             Screen.lockCursor = true;
+
             inGameMain = SceneManager.GetActiveScene().name == "GameMain";
             if (inGameMain)
             {
                 player = Object.FindObjectOfType<HousePartyPlayerCharacter>();
             }
+
+            isEnabled = true;
         }
 
         public void SetDisabled()
@@ -171,36 +174,20 @@ namespace HPFreecam
             camera.transform.rotation = rot;
             isEnabled = false;
             Screen.lockCursor = false;
+
+            //move cameras back
+            foreach (var item in Object.FindObjectsOfType<Camera>())
+            {
+                if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera")
+                {
+                    item.rect = new Rect(0, 0, 1, 1);
+                }
+            }
         }
 
         public bool Enabled()
         {
             return isEnabled;
-        }
-
-        public void SetRotationEnabled()
-        {
-            rotationEnabled = true;
-        }
-
-        public void SetRotationDisabled()
-        {
-            rotationEnabled = false;
-        }
-
-        public bool RotationEnabled()
-        {
-            return rotationEnabled;
-        }
-
-        public void SetSpeed(float speed)
-        {
-            this.speed = speed;
-        }
-
-        public void SetSpeedr(float speedr)
-        {
-            this.speedr = speedr;
         }
     }
 }
