@@ -21,7 +21,7 @@ namespace HPFreecam
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            freecam = new FFreecam(Object.FindObjectOfType<Camera>(), false);
+            freecam = new FFreecam(Object.FindObjectsOfType<Camera>()[0], true);
 
             Scene scene = SceneManager.GetActiveScene();
             inGameMain = scene.name == "GameMain";
@@ -42,7 +42,6 @@ namespace HPFreecam
                     freecam.SetRotationDisabled();
                     if (inGameMain)
                     {
-                        player.Incapacitated = false;
                         player.IsImmobile = false;
                         Camera temp_camera = Object.FindObjectOfType<Camera>();
                         if ((temp_camera.transform.position - player.Head.position + new Vector3(0, 0.1f, 0) + Vector3.Scale(player.Head.forward, new Vector3(0.2f, 0.2f, 0.2f))).magnitude >= 0.3)
@@ -58,7 +57,6 @@ namespace HPFreecam
                 {
                     if (inGameMain)
                     {
-                        player.Incapacitated = true;
                         player.IsImmobile = true;
                     }
                     else
@@ -84,7 +82,7 @@ namespace HPFreecam
         private bool rotationEnabled = false;
         private Camera camera = new Camera();
         private float speed = 2.3f;
-        private float speedr = 60f;
+        private float speedr = 20f;
         private float rotX = 0f;
         private float rotY = 0f;
         private Vector3 pos;
@@ -102,63 +100,14 @@ namespace HPFreecam
         {
             if (useSecondOne)
             {
-                Camera second = new Camera()
-                {
-                    allowDynamicResolution = camera.allowDynamicResolution,
-                    allowHDR = camera.allowHDR,
-                    allowMSAA = camera.allowMSAA,
-                    aspect = camera.aspect,
-                    backgroundColor = camera.backgroundColor,
-                    cameraType = camera.cameraType,
-                    clearFlags = camera.clearFlags,
-                    clearStencilAfterLightingPass = camera.clearStencilAfterLightingPass,
-                    cullingMask = camera.cullingMask,
-                    cullingMatrix = camera.cullingMatrix,
-                    depth = 10,
-                    depthTextureMode = camera.depthTextureMode,
-                    enabled = true,
-                    eventMask = camera.eventMask,
-                    farClipPlane = camera.farClipPlane,
-                    fieldOfView = camera.fieldOfView,
-                    focalLength = camera.focalLength,
-                    forceIntoRenderTexture = camera.forceIntoRenderTexture,
-                    gateFit = camera.gateFit,
-                    hideFlags = camera.hideFlags,
-                    layerCullDistances = camera.layerCullDistances,
-                    layerCullSpherical = camera.layerCullSpherical,
-                    lensShift = camera.lensShift,
-                    name = "Second Camera",
-                    nearClipPlane = camera.nearClipPlane,
-                    nonJitteredProjectionMatrix = camera.nonJitteredProjectionMatrix,
-                    opaqueSortMode = camera.opaqueSortMode,
-                    orthographic = camera.orthographic,
-                    orthographicSize = camera.orthographicSize,
-                    overrideSceneCullingMask = camera.overrideSceneCullingMask,
-                    pixelRect = camera.pixelRect,
-                    projectionMatrix = camera.projectionMatrix,
-                    rect = new Rect(0.5f, 0.5f, 0.3f, 0.3f),
-                    renderingPath = camera.renderingPath,
-                    scene = SceneManager.GetActiveScene(),
-                    sensorSize = camera.sensorSize,
-                    stereoConvergence = camera.stereoConvergence,
-                    stereoSeparation = camera.stereoSeparation,
-                    stereoTargetEye = camera.stereoTargetEye,
-                    tag = "Second Camera",
-                    targetDisplay = camera.targetDisplay,
-                    targetTexture = camera.targetTexture,
-                    transparencySortAxis = camera.transparencySortAxis,
-                    transparencySortMode = camera.transparencySortMode,
-                    useJitteredProjectionMatrixForTransparentRendering = camera.useJitteredProjectionMatrixForTransparentRendering,
-                    useOcclusionCulling = camera.useOcclusionCulling,
-                    usePhysicalProperties = camera.usePhysicalProperties,
-                    worldToCameraMatrix = camera.worldToCameraMatrix
-                };
-
-                second.transform.position = camera.transform.position;
-                second.transform.rotation = camera.transform.rotation;
-
-                SceneManager.MoveGameObjectToScene(second.gameObject, SceneManager.GetActiveScene());
-                camera = second;
+                camera = Object.Instantiate(camera);
+                camera.depth = 10;
+                camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                camera.tag = "Second Camera";
+                camera.name = "Second Camera";
+                SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
+                
+                camera.enabled = false;
             }
         }
 
@@ -192,26 +141,21 @@ namespace HPFreecam
                 }
                 if (rotationEnabled)
                 {
-                    Mouse.current.delta.x.clampMax = 90f;
-                    Mouse.current.delta.x.clampMin = -90f;
-                    Mouse.current.delta.y.clampMax = 360f;
-                    Mouse.current.delta.y.clampMin = -360f;
                     rotY += Mouse.current.delta.ReadValue().x;
                     rotX -= Mouse.current.delta.ReadValue().y;
-                    camera.transform.localEulerAngles = new Vector3(rotX, rotY, 0) * speedr * Time.deltaTime;
-                    if (inGameMain)
-                    {
-                        player.transform.RotateAround(Vector3.up, camera.transform.rotation.y);
-                    }
+
+                    camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler( new Vector3(rotX , rotY, 0)), speedr * Time.deltaTime);
                 }
             }
         }
 
         public void SetEnabled()
         {
+            camera.enabled = true;
             pos = camera.transform.position;
             rot = camera.transform.rotation;
             isEnabled = true;
+            //Screen.lockCursor = false;
             Screen.lockCursor = true;
             inGameMain = SceneManager.GetActiveScene().name == "GameMain";
             if (inGameMain)
@@ -222,6 +166,7 @@ namespace HPFreecam
 
         public void SetDisabled()
         {
+            camera.enabled = false;
             camera.transform.position = pos;
             camera.transform.rotation = rot;
             isEnabled = false;
