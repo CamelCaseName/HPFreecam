@@ -2,10 +2,23 @@
 ##### The freecam mod for House Party by Eek! Games#
 <hr>
 
-Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/tag/1.0). Download the dll, 
-and place it in your `Mods` folder in the House Party installation.
+Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/tag/1.0). 
 
-Refer to [this document here](https://github.com/0x78f1935/HPMods) for info on how to make House Party moddable.
+## QuickStart MelonLoader
+
+Make sure you have installed the game and atleast started the game once before you continue.
+
+1. Download [MelonLoader.Installer.exe](https://github.com/HerpDerpinstine/MelonLoader/releases/latest/download/MelonLoader.Installer.exe)
+2. Run MelonLoader.Installer.exe.
+3. Click the SELECT button.
+4. Select and Open the Game's EXE in your Game's Installation Folder.
+5. Select which Version of MelonLoader to install using the Drop-Down List. (Or leave it as-is for the Latest Version.)
+6. Click the INSTALL or RE-INSTALL button.
+
+After this the installation directory of the game should contain a new folder called `Mods`.
+Then Move the downloaded `.dll` into this folder and start the game.
+
+Refer to [this document here](https://github.com/0x78f1935/HPMods) for info on how modding House Party.
 
 # Keybinds
 
