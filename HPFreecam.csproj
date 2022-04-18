@@ -35,6 +35,10 @@
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Managed\Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Cinemachine">
+      <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Managed\Cinemachine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Il2Cppmscorlib">
       <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Managed\Il2Cppmscorlib.dll</HintPath>
       <Private>False</Private>
