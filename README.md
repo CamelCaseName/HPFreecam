@@ -1,4 +1,4 @@
-﻿# HPFreecam
+# HPFreecam
 ##### The freecam mod for House Party by Eek! Games#
 <hr>
 
