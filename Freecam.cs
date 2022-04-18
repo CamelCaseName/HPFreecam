@@ -54,18 +54,20 @@ namespace HPFreecam
             {
                 camera = Object.Instantiate(ccamera);
                 camera.depth = -2;
-                //camera.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                //camera.cullingMask |= 1 << 18; //see head
+                camera.cullingMask |= ~0; //see all
                 camera.tag = "Second Camera";
                 camera.name = "Second Camera";
                 camera.enabled = false;
                 camera.gameObject.layer = 3; //0 is default
-                //camera.transform.DetachChildren();//dont work
+                camera.cameraType = CameraType.Preview;
+
                 for (int i = 0; i < camera.transform.GetChildCount(); i++)
                 {
-                    Object.Destroy(camera.transform.GetChild(i).gameObject);
+                    if(camera.transform.GetChild(i).gameObject!= null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
                 }
-                camera.cameraType = CameraType.Preview;
-                //SceneManager.MoveGameObjectToScene(camera.gameObject, SceneManager.GetActiveScene());
+
+                Object.DestroyImmediate(camera.GetComponent<Cinemachine.CinemachineBrain>());
             }
             else
             {
@@ -163,6 +165,7 @@ namespace HPFreecam
 
         public void SetEnabled()
         {
+            MelonLogger.Msg("Freecam enabled.");
             camera.enabled = true;
 
             //move cameras to top left
@@ -183,36 +186,9 @@ namespace HPFreecam
             {
                 player = Object.FindObjectOfType<HousePartyPlayerCharacter>();
                 player.IsImmobile = true;
-                //MelonLogger.Msg($"Player mouse x: {PlayerControl.GetMousePosition().x} Player mouse x: {PlayerControl.GetMousePosition().y}");
-                //PlayerControl.ActivateMovement(); //enable
-
-
-                //CutSceneManager.KJACEIEEBJB.KENCOPFBJDG //private list of transforms
-                //CutSceneManager.KJACEIEEBJB //currently playing cutscene
-
-                /* according to unity docs
-                 * Split-screen and picture-in-picture effects require the use of more than one Unity camera. Each Unity camera presents its own view on the player’s screen.
-                 * To use a multi-camera split-screen for two players:
-                 * For each player, create a layer. For example, for two players, create layers named P1 and P2.
-                 * Add two Unity cameras to your Scene, set up their viewports, and give each one its own Cinemachine Brain component.
-                 * For each Unity camera, set the Culling Mask to the appropriate layer while excluding the other layer. For example, set the first Unity camera to include layer P1 while excluding P2.
-                 * Add 2 Virtual Cameras, one to follow each player to follow the players. Assign each Virtual Camera to a player layer.
-                 */
-
-                //doesnt do shit :(
-                if (CutSceneManager.KJACEIEEBJB != null)
-                {
-                    CutSceneManager.KJACEIEEBJB.IEMKCPAJABK.m_OutputCamera.cullingMask &= ~(1 << camera.gameObject.layer); //cinemachinebrain, exclude our layer
-                    //camera.cullingMask &= ~(1 << 27); //27 is the camera layer?
-                    CutSceneManager.KJACEIEEBJB.IEMKCPAJABK.m_OutputCamera = Object.FindObjectOfType<Camera>();
-
-
-                    //CutSceneManager.KJACEIEEBJB.IEMKCPAJABK.m_OutputCamera.overrideSceneCullingMask = (ulong)~(1 << camera.gameObject.layer); //cinemachinebrain
-                }
             }
 
             isEnabled = true;
-            MelonLogger.Msg("Freecam enabled.");
         }
 
         public void Update()
@@ -261,7 +237,6 @@ namespace HPFreecam
                     //for cutscene we still get input, but the camera position is overriden by the cutscene, and rotation cant be changed, locked as well :(
                     rotY += PlayerControl.GetLookValue().x * 0.8f;
                     rotX -= PlayerControl.GetLookValue().y * 0.8f;
-                    //MelonLogger.Msg($"Mouse look value: x=>{rotX} y=>{rotY}.");
                 }
 
                 camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
@@ -272,6 +247,9 @@ namespace HPFreecam
         {
             int child_count = t.childCount;
             MelonLogger.Msg($"{indent}'<{t.gameObject.GetType().ToString().Replace("UnityEngine.", "")}>{t.gameObject.name}' ({child_count} children) -> Layer [{t.gameObject.layer}] {LayerMask.LayerToName(t.gameObject.layer)}");
+
+            MelonLogger.Msg($"Components on {t.gameObject.name}");
+            PrintComponents(t.gameObject, "L______");
 
             string more_indent;
             if (indent.Length == 1)
@@ -288,6 +266,17 @@ namespace HPFreecam
                 {
                     var child = t.GetChild(i);
                     PrintChildren(child, more_indent);
+                }
+            }
+        }
+        private static void PrintComponents(GameObject o, string indent)
+        {
+            int component_count;
+            if ((component_count = o.GetComponents<MonoBehaviour>().Count) > 0)
+            {
+                foreach (var comp in o.GetComponentsInChildren<MonoBehaviour>())
+                {
+                    if (comp != null) MelonLogger.Msg($"{indent}'<{comp.GetType().ToString().Replace("UnityEngine.", "")}>{comp.GetScriptClassName()}' ({component_count} components) -> Layer [{comp.gameObject.layer}] {LayerMask.LayerToName(comp.gameObject.layer)}");
                 }
             }
         }
