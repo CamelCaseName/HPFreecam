@@ -2,7 +2,7 @@
 ##### The freecam mod for House Party by Eek! Games#
 <hr>
 
-Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/tag/1.0). 
+Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
 
 ## QuickStart MelonLoader
 
