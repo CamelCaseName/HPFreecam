@@ -54,7 +54,7 @@ namespace HPFreecam
         private readonly float rotRes = 0.15f;
         private readonly float speed = 2.3f;
         private Camera camera;
-        private  Camera game_camera;
+        private Camera game_camera;
         private bool inCamera = true;
         private bool inGameMain = false;
         private bool isEnabled = false;
@@ -141,7 +141,7 @@ namespace HPFreecam
             if (isEnabled)
             {
                 //only concern about two cameras at once when in game main
-                if (inGameMain)
+                if (inGameMain && CutsceneHandle())
                 {
                     if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed && inCamera)
                     {
@@ -161,6 +161,11 @@ namespace HPFreecam
                         camera.transform.rotation = player.Head.transform.rotation;
                         MelonLogger.Msg("Freecam teleported to the player's head.");
                     }
+                }
+                else if (!CutsceneHandle())
+                {
+                    SetDisabled();
+                    return;
                 }
                 else
                 {
@@ -205,6 +210,22 @@ namespace HPFreecam
             MelonLogger.Msg("Freecam disabled.");
         }
 
+        private bool CutsceneHandle()
+        {
+            //Cinemachine.CinemachineBrain brain = Object.FindObjectOfType<Cinemachine.CinemachineBrain>();
+            foreach (var scene in CutSceneManager.GGONCOBOBOF)
+            {
+                foreach (var character in scene.LNDLGOCMEOI)
+                {
+                    if (character.IsDLCCharacter)
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
         public void SetEnabled()
         {
             if (camera == null || !isInitialized)
@@ -219,7 +240,6 @@ namespace HPFreecam
                 Initialize();
             }
 
-            MelonLogger.Msg("Freecam enabled.");
             camera.enabled = true;
 
             //move cameras to top left
@@ -243,6 +263,7 @@ namespace HPFreecam
             }
 
             isEnabled = true;
+            MelonLogger.Msg("Freecam enabled.");
         }
 
         //todo, use input system
@@ -289,7 +310,6 @@ namespace HPFreecam
                 }
                 else
                 {
-                    //for cutscene we still get input, but the camera position is overriden by the cutscene, and rotation cant be changed, locked as well :(
                     rotY += PlayerControl.GetLookValue().x * 0.8f;
                     rotX -= PlayerControl.GetLookValue().y * 0.8f;
                 }
