@@ -1,7 +1,4 @@
-﻿using EekAddOns;
-using Il2CppSystem;
-using Il2CppSystem.Collections.Generic;
-using MelonLoader;
+﻿using MelonLoader;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -13,16 +10,16 @@ namespace HPFreecam
     {
         private FFreecam freecam;
 
+#if DEBUG
+        public override void OnApplicationStart()
+        {
+            MelonLogger.Msg("Debug build of the freecam!");
+        }
+#endif
+
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
         {
-            foreach (var item in Object.FindObjectsOfType<Camera>())
-            {
-                if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera")
-                {
-                    freecam = new FFreecam(item, true);
-                    break;
-                }
-            }
+            freecam = new FFreecam();
         }
 
         public override void OnUpdate()
@@ -31,47 +28,50 @@ namespace HPFreecam
             {
                 freecam.OnUpdate();
             }
+
+#if DEBUG
+            if (Keyboard.current[Key.D].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
+            {
+                foreach (var item in Object.FindObjectsOfType<Camera>())
+                {
+                    if (item.name == "Camera" || item.name == "Second Camera")
+                    {
+                        ObjectInfo.PrintHierarchy(item.gameObject);
+                    }
+                }
+            }
+#endif
         }
     }
 
     //yoink this class if you need a freecam
     //or just use the mod alongside yours 
+    //TODO add UI with coord view, and layer selector
+    //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
     internal class FFreecam
     {
         private readonly PlayerControlManager PlayerControl = Object.FindObjectOfType<PlayerControlManager>();
         private readonly float rotRes = 0.15f;
         private readonly float speed = 2.3f;
-        private readonly Camera camera = new Camera();
+        private Camera camera;
+        private  Camera game_camera;
         private bool inCamera = true;
         private bool inGameMain = false;
         private bool isEnabled = false;
-        private HousePartyPlayerCharacter player = null;
+        private bool isInitialized = false;
+        private EekAddOns.HousePartyPlayerCharacter player = null;
         private float rotX = 0f;
         private float rotY = 0f;
-        public FFreecam(Camera ccamera, bool useSecond)
+
+        public FFreecam()
         {
-            if (useSecond)
+            foreach (var item in Object.FindObjectsOfType<Camera>())
             {
-                camera = Object.Instantiate(ccamera);
-                camera.depth = -2;
-                //camera.cullingMask |= 1 << 18; //see head
-                camera.cullingMask |= ~0; //see all
-                camera.tag = "Second Camera";
-                camera.name = "Second Camera";
-                camera.enabled = false;
-                camera.gameObject.layer = 3; //0 is default
-                camera.cameraType = CameraType.Preview;
-
-                for (int i = 0; i < camera.transform.GetChildCount(); i++)
+                if (item.name == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
                 {
-                    if(camera.transform.GetChild(i).gameObject!= null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
+                    game_camera = item;
+                    Initialize();
                 }
-
-                Object.DestroyImmediate(camera.GetComponent<Cinemachine.CinemachineBrain>());
-            }
-            else
-            {
-                camera = ccamera;
             }
         }
 
@@ -83,6 +83,45 @@ namespace HPFreecam
         public void OnUpdate()
         {
             //toggle freecam with alt+f
+            CheckForToggle();
+
+            //update position and so on
+            Move();
+
+            //update ui
+            DisplayUI();
+        }
+
+        private void DisplayUI()
+        {
+
+        }
+
+        private void Initialize()
+        {
+            //ObjectInfo.PrintHierarchy(game_camera.gameObject);
+            camera = Object.Instantiate(game_camera.gameObject).GetComponent<Camera>();
+            camera.depth = -2;
+            //camera.cullingMask |= 1 << 18; //see head
+            camera.cullingMask |= ~0; //see all
+            camera.name = "Second Camera";
+            camera.enabled = false;
+            camera.gameObject.layer = 3; //0 is default
+            camera.cameraType = CameraType.Game;
+
+            for (int i = 0; i < camera.transform.GetChildCount(); i++)
+            {
+                if (camera.transform.GetChild(i).gameObject != null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
+            }
+
+            Object.DestroyImmediate(camera.gameObject.GetComponent<Cinemachine.CinemachineBrain>());
+
+            isInitialized = camera.gameObject.transform.gameObject.GetComponents<MonoBehaviour>().Count > 0;
+            //ObjectInfo.PrintHierarchy(camera.gameObject);
+        }
+
+        private void CheckForToggle()
+        {
             if (Keyboard.current[Key.F].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
             {
                 if (Enabled())
@@ -94,7 +133,10 @@ namespace HPFreecam
                     SetEnabled();
                 }
             }
+        }
 
+        private void Move()
+        {
             //run freecam
             if (isEnabled)
             {
@@ -141,6 +183,7 @@ namespace HPFreecam
 
         public void SetDisabled()
         {
+            isEnabled = false;
             camera.enabled = false;
             Screen.lockCursor = false;
 
@@ -159,12 +202,23 @@ namespace HPFreecam
                 player.IsImmobile = false;
             }
 
-            isEnabled = false;
             MelonLogger.Msg("Freecam disabled.");
         }
 
         public void SetEnabled()
         {
+            if (camera == null || !isInitialized)
+            {
+                foreach (var item in Object.FindObjectsOfType<Camera>())
+                {
+                    if (item.name == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
+                    {
+                        game_camera = item;
+                    }
+                }
+                Initialize();
+            }
+
             MelonLogger.Msg("Freecam enabled.");
             camera.enabled = true;
 
@@ -184,13 +238,14 @@ namespace HPFreecam
             inGameMain = SceneManager.GetActiveScene().name == "GameMain";
             if (inGameMain)
             {
-                player = Object.FindObjectOfType<HousePartyPlayerCharacter>();
+                player = Object.FindObjectOfType<EekAddOns.HousePartyPlayerCharacter>();
                 player.IsImmobile = true;
             }
 
             isEnabled = true;
         }
 
+        //todo, use input system
         public void Update()
         {
             //only move when we are not moving the player
@@ -241,49 +296,6 @@ namespace HPFreecam
 
                 camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
             }
-        }
-
-        private static void PrintChildren(Transform t, string indent)
-        {
-            int child_count = t.childCount;
-            MelonLogger.Msg($"{indent}'<{t.gameObject.GetType().ToString().Replace("UnityEngine.", "")}>{t.gameObject.name}' ({child_count} children) -> Layer [{t.gameObject.layer}] {LayerMask.LayerToName(t.gameObject.layer)}");
-
-            MelonLogger.Msg($"Components on {t.gameObject.name}");
-            PrintComponents(t.gameObject, "L______");
-
-            string more_indent;
-            if (indent.Length == 1)
-            {
-                more_indent = "L___";
-            }
-            else
-            {
-                more_indent = indent + "____";
-            }
-            if (child_count > 0)
-            {
-                for (int i = 0; i < child_count; ++i)
-                {
-                    var child = t.GetChild(i);
-                    PrintChildren(child, more_indent);
-                }
-            }
-        }
-        private static void PrintComponents(GameObject o, string indent)
-        {
-            int component_count;
-            if ((component_count = o.GetComponents<MonoBehaviour>().Count) > 0)
-            {
-                foreach (var comp in o.GetComponentsInChildren<MonoBehaviour>())
-                {
-                    if (comp != null) MelonLogger.Msg($"{indent}'<{comp.GetType().ToString().Replace("UnityEngine.", "")}>{comp.GetScriptClassName()}' ({component_count} components) -> Layer [{comp.gameObject.layer}] {LayerMask.LayerToName(comp.gameObject.layer)}");
-                }
-            }
-        }
-
-        private static void PrintHierarchy(GameObject obj)
-        {
-            PrintChildren(obj.transform, "*");
         }
     }
 }
