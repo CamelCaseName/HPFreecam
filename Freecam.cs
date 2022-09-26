@@ -64,10 +64,11 @@ namespace HPFreecam
         private Camera camera;
         private Camera game_camera;
         private bool inCamera = true;
+        private bool showUI = false;
         private bool inGameMain = false;
         private bool isEnabled = false;
         private bool isInitialized = false;
-        private Rect uiPos = new Rect(10, Screen.height * 0.6f, Screen.width * 0.3f, Screen.height * 0.2f);
+        private Rect uiPos = new Rect(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
         private readonly GUILayoutOption[] Opt = new GUILayoutOption[0];
         private EekAddOns.HousePartyPlayerCharacter player = null;
         private float rotX = 0f;
@@ -108,7 +109,7 @@ namespace HPFreecam
 
         private void DisplayUI()
         {
-            if (isEnabled && inGameMain)
+            if (isEnabled && inGameMain && showUI)
             {
                 GUILayout.BeginArea(uiPos);
                 GUILayout.BeginVertical(Opt);
@@ -173,6 +174,10 @@ namespace HPFreecam
                 {
                     SetEnabled();
                 }
+            }
+            if (Keyboard.current[Key.U].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
+            {
+                showUI = !showUI;
             }
         }
 
