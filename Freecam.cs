@@ -42,6 +42,14 @@ namespace HPFreecam
             }
 #endif
         }
+
+        public override void OnGUI()
+        {
+            if (freecam != null)
+            {
+                freecam.OnGUI();
+            }
+        }
     }
 
     //yoink this class if you need a freecam
@@ -59,6 +67,8 @@ namespace HPFreecam
         private bool inGameMain = false;
         private bool isEnabled = false;
         private bool isInitialized = false;
+        private Rect uiPos = new Rect(10, Screen.height * 0.6f, Screen.width * 0.3f, Screen.height * 0.2f);
+        private readonly GUILayoutOption[] Opt = new GUILayoutOption[0];
         private EekAddOns.HousePartyPlayerCharacter player = null;
         private float rotX = 0f;
         private float rotY = 0f;
@@ -71,6 +81,7 @@ namespace HPFreecam
                 {
                     game_camera = item;
                     Initialize();
+                    break;
                 }
             }
         }
@@ -87,37 +98,67 @@ namespace HPFreecam
 
             //update position and so on
             Move();
+        }
 
+        public void OnGUI()
+        {
             //update ui
             DisplayUI();
         }
 
         private void DisplayUI()
         {
+            if (isEnabled && inGameMain)
+            {
+                GUILayout.BeginArea(uiPos);
+                GUILayout.BeginVertical(Opt);
+                GUILayout.Label(
+                    $"Player pos ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})" +
+                    $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})", Opt);
+                GUILayout.Label(
+                    $"Player rot ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})" +
+                    $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})", Opt);
 
+                GUILayout.Label(
+                    $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})" +
+                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})", Opt);
+                string lookingAt = "None";
+                if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
+                {
+                    lookingAt = hit.transform.gameObject.name;
+                }
+                GUILayout.Label($"Freecam looking at {lookingAt}", Opt);
+                GUILayout.EndVertical();
+                GUILayout.EndArea();
+            }
         }
 
-        private void Initialize()
+        private bool Initialize()
         {
-            //ObjectInfo.PrintHierarchy(game_camera.gameObject);
-            camera = Object.Instantiate(game_camera.gameObject).GetComponent<Camera>();
-            camera.depth = -2;
-            //camera.cullingMask |= 1 << 18; //see head
-            camera.cullingMask |= ~0; //see all
-            camera.name = "Second Camera";
-            camera.enabled = false;
-            camera.gameObject.layer = 3; //0 is default
-            camera.cameraType = CameraType.Game;
-
-            for (int i = 0; i < camera.transform.GetChildCount(); i++)
+            if (game_camera != null)
             {
-                if (camera.transform.GetChild(i).gameObject != null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
+                //ObjectInfo.PrintHierarchy(game_camera.gameObject);
+                camera = Object.Instantiate(game_camera.gameObject).GetComponent<Camera>();
+                camera.depth = -2;
+                //camera.cullingMask |= 1 << 18; //see head
+                camera.cullingMask |= ~0; //see all
+                camera.name = "Second Camera";
+                camera.enabled = false;
+                camera.gameObject.layer = 3; //0 is default
+                camera.cameraType = CameraType.Game;
+
+                for (int i = 0; i < camera.transform.GetChildCount(); i++)
+                {
+                    if (camera.transform.GetChild(i).gameObject != null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
+                }
+
+                Object.DestroyImmediate(camera.gameObject.GetComponent<Cinemachine.CinemachineBrain>());
+
+                isInitialized = camera.gameObject.transform.gameObject.GetComponents<MonoBehaviour>().Count > 0;
+                //ObjectInfo.PrintHierarchy(camera.gameObject);
+                return true;
             }
-
-            Object.DestroyImmediate(camera.gameObject.GetComponent<Cinemachine.CinemachineBrain>());
-
-            isInitialized = camera.gameObject.transform.gameObject.GetComponents<MonoBehaviour>().Count > 0;
-            //ObjectInfo.PrintHierarchy(camera.gameObject);
+            return false;
         }
 
         private void CheckForToggle()
@@ -212,16 +253,21 @@ namespace HPFreecam
 
         private bool CutsceneHandle()
         {
-            //Cinemachine.CinemachineBrain brain = Object.FindObjectOfType<Cinemachine.CinemachineBrain>();
-            foreach (var scene in CutSceneManager.GGONCOBOBOF)
+            if (inGameMain)
             {
-                foreach (var character in scene.LNDLGOCMEOI)
+                bool enable = false;
+                foreach (var scene in CutSceneManager.GGONCOBOBOF)
                 {
-                    if (character.IsDLCCharacter)
+                    foreach (var character in scene.LNDLGOCMEOI)
                     {
-                        return false;
+                        if (character.IsDLCCharacter)
+                        {
+                            enable = false;
+                        }
                     }
+                    if (scene.name == "DC_FenceEvent") enable = true;
                 }
+                return enable;
             }
             return true;
         }
@@ -235,9 +281,10 @@ namespace HPFreecam
                     if (item.name == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
                     {
                         game_camera = item;
+                        break;
                     }
                 }
-                Initialize();
+                if (!Initialize()) return;
             }
 
             camera.enabled = true;
