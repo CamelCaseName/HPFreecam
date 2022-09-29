@@ -1,4 +1,8 @@
-﻿using MelonLoader;
+﻿using EekCharacterEngine;
+using Il2CppSystem.Collections.Generic;
+using Il2CppSystem.Reflection;
+using MelonLoader;
+using UnhollowerRuntimeLib;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -73,6 +77,8 @@ namespace HPFreecam
         private EekAddOns.HousePartyPlayerCharacter player = null;
         private float rotX = 0f;
         private float rotY = 0f;
+        private PropertyInfo cutsceneList = new PropertyInfo();
+        private PropertyInfo cutsceneCharacterList = new PropertyInfo();
 
         public FFreecam()
         {
@@ -243,7 +249,7 @@ namespace HPFreecam
             {
                 if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera" || item.name.StartsWith("CM_"))
                 {
-                    MelonLogger.Msg($"Moved {item.name} back to fullscreen.");
+                    //MelonLogger.Msg($"Moved {item.name} back to fullscreen.");
                     item.rect = new Rect(0, 0, 1, 1);
                 }
             }
@@ -258,12 +264,12 @@ namespace HPFreecam
 
         private bool CutsceneHandle()
         {
-            if (inGameMain)
+            if (inGameMain && cutsceneList != null && cutsceneCharacterList != null)
             {
-                bool enable = false;
-                foreach (var scene in CutSceneManager.GGONCOBOBOF)
+                bool enable = true;
+                foreach (var scene in cutsceneList.GetValue(null).Cast<List<CutScene>>())
                 {
-                    foreach (var character in scene.LNDLGOCMEOI)
+                    foreach (var character in cutsceneCharacterList.GetValue(scene).Cast<List<Character>>())
                     {
                         if (character.IsDLCCharacter)
                         {
@@ -299,8 +305,30 @@ namespace HPFreecam
             {
                 if (item.name == "Camera" || item.name == "MainCamera" || item.name == "Main Camera" || item.name.StartsWith("CM_"))
                 {
-                    MelonLogger.Msg($"Moved {item.name} to the top left.");
+                    //MelonLogger.Msg($"Moved {item.name} to the top left.");
                     item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);//starting left, bottom, extend up, right
+                    break;
+                }
+            }
+
+            foreach (var property in Il2CppType.Of<CutSceneManager>().GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.GetField))
+            {
+                //MelonLogger.Msg(property.ToString());
+                if (property.PropertyType == Il2CppType.Of<List<CutScene>>())
+                {
+                    //MelonLogger.Msg("used this one");
+                    cutsceneList = property;
+                    break;
+                }
+            }
+
+            foreach (var prop in Il2CppType.Of<CutScene>().GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.GetField))
+            {
+                //MelonLogger.Msg(prop.ToString());
+                if (prop.PropertyType == Il2CppType.Of<List<Character>>() && prop.GetMethod != null && prop.SetMethod == null)
+                {
+                    //MelonLogger.Msg("thats the one");
+                    cutsceneCharacterList = prop;
                     break;
                 }
             }
