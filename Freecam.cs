@@ -153,6 +153,7 @@ namespace HPFreecam
                 camera.enabled = false;
                 camera.gameObject.layer = 3; //0 is default
                 camera.cameraType = CameraType.Game;
+                camera.hideFlags = HideFlags.HideAndDontSave;
 
                 for (int i = 0; i < camera.transform.GetChildCount(); i++)
                 {
@@ -395,6 +396,10 @@ namespace HPFreecam
                 }
 
                 camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
+            }
+            else if (isInitialized)
+            {
+                camera.transform.position = player.Head.transform.position;
             }
         }
     }
