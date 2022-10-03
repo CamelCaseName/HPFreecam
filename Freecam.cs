@@ -64,7 +64,8 @@ namespace HPFreecam
     {
         private readonly PlayerControlManager PlayerControl = Object.FindObjectOfType<PlayerControlManager>();
         private readonly float rotRes = 0.15f;
-        private readonly float speed = 2.3f;
+        private const float defaultSpeed = 2.3f;
+        private float speed = defaultSpeed;
         private Camera camera;
         private Camera game_camera;
         private bool inCamera = true;
@@ -353,6 +354,15 @@ namespace HPFreecam
             //only move when we are not moving the player
             if (isEnabled && inCamera)
             {
+                if (Keyboard.current[Key.LeftShift].isPressed)
+                {
+                    speed = defaultSpeed * 2.5f;
+                    //MelonLogger.Msg("Freecam move forward.");
+                }
+                else
+                {
+                    speed = defaultSpeed;
+                }
                 if (Keyboard.current[Key.W].isPressed)
                 {
                     camera.transform.position += camera.transform.forward * speed * Time.deltaTime;
@@ -373,7 +383,7 @@ namespace HPFreecam
                     camera.transform.position += camera.transform.right * speed * Time.deltaTime;
                     //MelonLogger.Msg("Freecam move right.");
                 }
-                if (Keyboard.current[Key.LeftShift].isPressed)
+                if (Keyboard.current[Key.Space].isPressed)
                 {
                     camera.transform.position += camera.transform.up * speed * Time.deltaTime;
                     //MelonLogger.Msg("Freecam move up.");
