@@ -355,44 +355,25 @@ namespace HPFreecam
             if (isEnabled && inCamera)
             {
                 if (Keyboard.current[Key.LeftShift].isPressed)
-                {
                     speed = defaultSpeed * 2.5f;
-                    //MelonLogger.Msg("Freecam move forward.");
-                }
                 else
-                {
                     speed = defaultSpeed;
-                }
+
                 if (Keyboard.current[Key.W].isPressed)
-                {
                     camera.transform.position += camera.transform.forward * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move forward.");
-                }
                 else if (Keyboard.current[Key.S].isPressed)
-                {
                     camera.transform.position -= camera.transform.forward * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move back.");
-                }
+
                 if (Keyboard.current[Key.A].isPressed)
-                {
                     camera.transform.position -= camera.transform.right * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move left.");
-                }
                 else if (Keyboard.current[Key.D].isPressed)
-                {
                     camera.transform.position += camera.transform.right * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move right.");
-                }
+
                 if (Keyboard.current[Key.Space].isPressed)
-                {
                     camera.transform.position += camera.transform.up * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move up.");
-                }
                 else if (Keyboard.current[Key.LeftCtrl].isPressed)
-                {
                     camera.transform.position -= camera.transform.up * speed * Time.deltaTime;
-                    //MelonLogger.Msg("Freecam move down.");
-                }
+
                 //does not work in game when the player is loaded
                 if (!inGameMain)
                 {
