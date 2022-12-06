@@ -195,7 +195,7 @@ namespace HPFreecam
             if (isEnabled)
             {
                 //only concern about two cameras at once when in game main
-                if (inGameMain && CutsceneHandle())
+                if (inGameMain)
                 {
                     if (Keyboard.current[Key.G].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed && inCamera)
                     {
@@ -215,11 +215,6 @@ namespace HPFreecam
                         camera.transform.rotation = player.Head.transform.rotation;
                         MelonLogger.Msg("Freecam teleported to the player's head.");
                     }
-                }
-                else if (!CutsceneHandle())
-                {
-                    SetDisabled();
-                    return;
                 }
                 else
                 {
@@ -262,27 +257,6 @@ namespace HPFreecam
             }
 
             MelonLogger.Msg("Freecam disabled.");
-        }
-
-        private bool CutsceneHandle()
-        {
-            if (inGameMain && cutsceneList != null && cutsceneCharacterList != null)
-            {
-                bool enable = true;
-                foreach (var scene in cutsceneList.GetValue(null).Cast<List<CutScene>>())
-                {
-                    foreach (var character in cutsceneCharacterList.GetValue(scene).Cast<List<Character>>())
-                    {
-                        if (character.IsDLCCharacter)
-                        {
-                            enable = false;
-                        }
-                    }
-                    if (scene.name == "DC_FenceEvent") enable = true;
-                }
-                return enable;
-            }
-            return true;
         }
 
         public void SetEnabled()
