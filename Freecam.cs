@@ -1,12 +1,17 @@
-﻿using EekCharacterEngine;
-using Il2CppSystem.Collections.Generic;
-using Il2CppSystem.Reflection;
+﻿
 using MelonLoader;
-using UnhollowerRuntimeLib;
-using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
+using Il2CppInterop;
+using Il2CppInterop.Common;
 using Object = UnityEngine.Object;
+using Il2Cpp;
+using UnityEngine.InputSystem;
+using UnityEngine;
+using Il2CppCinemachine;
+using Il2CppSystem.Reflection;
+using Il2CppInterop.Runtime;
+using System.Collections.Generic;
+using Il2CppEekCharacterEngine;
+using UnityEngine.SceneManagement;
 
 namespace HPFreecam
 {
@@ -28,10 +33,7 @@ namespace HPFreecam
 
         public override void OnUpdate()
         {
-            if (freecam != null)
-            {
-                freecam.OnUpdate();
-            }
+            freecam?.OnUpdate();
 
 #if DEBUG
             if (Keyboard.current[Key.D].wasPressedThisFrame && Keyboard.current[Key.LeftAlt].isPressed)
@@ -49,10 +51,7 @@ namespace HPFreecam
 
         public override void OnGUI()
         {
-            if (freecam != null)
-            {
-                freecam.OnGUI();
-            }
+            freecam?.OnGUI();
         }
     }
 
@@ -75,11 +74,9 @@ namespace HPFreecam
         private bool isInitialized = false;
         private Rect uiPos = new Rect(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
         private readonly GUILayoutOption[] Opt = new GUILayoutOption[0];
-        private EekAddOns.HousePartyPlayerCharacter player = null;
+        private Il2CppEekAddOns.HousePartyPlayerCharacter player = null;
         private float rotX = 0f;
         private float rotY = 0f;
-        private PropertyInfo cutsceneList = new PropertyInfo();
-        private PropertyInfo cutsceneCharacterList = new PropertyInfo();
 
         public FFreecam()
         {
@@ -161,7 +158,7 @@ namespace HPFreecam
                     if (camera.transform.GetChild(i).gameObject != null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
                 }
 
-                Object.DestroyImmediate(camera.gameObject.GetComponent<Cinemachine.CinemachineBrain>());
+                Object.DestroyImmediate(camera.gameObject.GetComponent<CinemachineBrain>());
 
                 isInitialized = camera.gameObject.transform.gameObject.GetComponents<MonoBehaviour>().Count > 0;
                 //ObjectInfo.PrintHierarchy(camera.gameObject);
@@ -287,34 +284,12 @@ namespace HPFreecam
                 }
             }
 
-            foreach (var property in Il2CppType.Of<CutSceneManager>().GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.GetField))
-            {
-                //MelonLogger.Msg(property.ToString());
-                if (property.PropertyType == Il2CppType.Of<List<CutScene>>())
-                {
-                    //MelonLogger.Msg("used this one");
-                    cutsceneList = property;
-                    break;
-                }
-            }
-
-            foreach (var prop in Il2CppType.Of<CutScene>().GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.GetProperty | BindingFlags.GetField))
-            {
-                //MelonLogger.Msg(prop.ToString());
-                if (prop.PropertyType == Il2CppType.Of<List<Character>>() && prop.GetMethod != null && prop.SetMethod == null)
-                {
-                    //MelonLogger.Msg("thats the one");
-                    cutsceneCharacterList = prop;
-                    break;
-                }
-            }
-
             Screen.lockCursor = true;
 
             inGameMain = SceneManager.GetActiveScene().name == "GameMain";
             if (inGameMain)
             {
-                player = Object.FindObjectOfType<EekAddOns.HousePartyPlayerCharacter>();
+                player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
                 player.IsImmobile = true;
             }
 
