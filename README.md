@@ -1,5 +1,5 @@
 # HPFreecam
-##### The freecam mod for House Party by Eek! Games#
+##### The freecam mod for House Party by Eek! Games
 <hr>
 
 Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
