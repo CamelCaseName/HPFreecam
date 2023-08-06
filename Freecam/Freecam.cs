@@ -1,13 +1,16 @@
 ﻿using Il2CppCinemachine;
+using Il2CppEekCharacterEngine;
 using Il2CppInterop.Runtime;
 using MelonLoader;
 using System;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
 using Il2CppException = Il2CppInterop.Runtime.Il2CppException;
 using Object = UnityEngine.Object;
+
 namespace Freecam;
 
 public class Freecam : MelonMod
@@ -15,6 +18,11 @@ public class Freecam : MelonMod
     private FFreecam? freecam;
 
 #if DEBUG
+    public override void OnGUI()
+    {
+        freecam?.OnGUI();
+    }
+
     public override void OnInitializeMelon()
     {
         MelonLogger.Msg("Debug build of the freecam!");
@@ -23,7 +31,7 @@ public class Freecam : MelonMod
 
     public override void OnSceneWasLoaded(int buildIndex, string sceneName)
     {
-        freecam = new FFreecam();
+        freecam = new FFreecam(sceneName);
     }
 
     public override void OnUpdate()
@@ -40,11 +48,6 @@ public class Freecam : MelonMod
         }
 #endif
     }
-
-    public override void OnGUI()
-    {
-        freecam?.OnGUI();
-    }
 }
 
 //yoink this class if you need a freecam
@@ -53,25 +56,23 @@ public class Freecam : MelonMod
 //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
 internal class FFreecam
 {
-    private readonly float rotRes = 0.15f;
     private const float defaultSpeed = 2.3f;
-    private float speed = defaultSpeed;
+    private readonly GUILayoutOption[] Opt = Array.Empty<GUILayoutOption>();
+    private readonly float rotRes = 0.15f;
     private Camera? camera = null;
     private Camera? game_camera = null;
     private bool inCamera = true;
-    private bool showUI = false;
-    private bool inGameMain = false;
+    private bool gameCameraHidden = false;
+    private readonly bool inGameMain = false;
     private bool isEnabled = false;
     private bool isInitialized = false;
-    private Rect uiPos = new(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
-    private readonly GUILayoutOption[] Opt = Array.Empty<GUILayoutOption>();
     private Il2CppEekAddOns.HousePartyPlayerCharacter? player = null;
     private float rotX = 0f;
     private float rotY = 0f;
-    private Object? controller = null;
-    private IntPtr nativePlayerControllerGetLookValuePointer = IntPtr.Zero;
-
-    public FFreecam()
+    private bool showUI = false;
+    private float speed = defaultSpeed;
+    private Rect uiPos = new(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
+    public FFreecam(string sceneName)
     {
         foreach (var item in Object.FindObjectsOfType<Camera>())
         {
@@ -82,32 +83,16 @@ internal class FFreecam
                 break;
             }
         }
-        //initlialize the lookvalue stuff
-        _ = PlayerController_GetLookValue();
-    }
-
-    private unsafe Vector2 PlayerController_GetLookValue()
-    {
-        var scene = SceneManager.GetActiveScene();
-        if (Il2CppSupport.GetProperty<string, Scene>(scene.BoxIl2CppObject(), "name") != "GameMain") return Vector2.zero;
-        IntPtr* parameterArray = null;
-        IntPtr nativeException = IntPtr.Zero;
-
-        if (controller == null || nativePlayerControllerGetLookValuePointer == IntPtr.Zero)
-        {
-            var nativeClass = IL2CPP.GetIl2CppClass("EekCharacterEngine.dll", "", "PlayerControlManager");
-            nativePlayerControllerGetLookValuePointer = IL2CPP.il2cpp_class_get_method_from_name(nativeClass, "GetLookValue", 0);
-            controller = Object.FindObjectOfType(Il2CppType.TypeFromPointer(nativeClass, "PlayerControlManager"));
-        }
-
-        var nativeController = IL2CPP.Il2CppObjectBaseToPtrNotNull(controller);
-        IntPtr resultVector2 = IL2CPP.il2cpp_runtime_invoke(nativePlayerControllerGetLookValuePointer, nativeController, (void**)parameterArray, ref nativeException);
-
-        Il2CppException.RaiseExceptionIfNecessary(nativeException);
-        return *(Vector2*)IL2CPP.il2cpp_object_unbox(resultVector2);
+        inGameMain = sceneName == "GameMain";
     }
 
     public bool Enabled => isEnabled;
+
+    public void OnGUI()
+    {
+        //update ui
+        DisplayUI();
+    }
 
     public void OnUpdate()
     {
@@ -115,13 +100,184 @@ internal class FFreecam
         CheckForToggle();
 
         //update position and so on
-        Move();
+        Update();
     }
 
-    public void OnGUI()
+    public void SetDisabled()
     {
-        //update ui
-        DisplayUI();
+        isEnabled = false;
+        if (camera is not null)
+            camera.enabled = false;
+
+        Screen.lockCursor = false;
+
+        //move cameras back
+        foreach (var item in Object.FindObjectsOfType<Camera>())
+        {
+            string name = $"{item.gameObject.name}";
+            if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+            {
+                //MelonLogger.Msg($"Moved {item.name} back to fullscreen.");
+                item.rect = new Rect(0, 0, 1, 1);
+                item.enabled = true;
+            }
+        }
+
+        if (player != null)
+        {
+            TryImmobilizePlayer(false);
+        }
+
+        MelonLogger.Msg("Freecam disabled.");
+    }
+
+    private void TryImmobilizePlayer(bool immobile)
+    {
+        if (player is null) return;
+        Il2CppSupport.SetProperty<bool, Character>(player, nameof(player.IsImmobile), immobile);
+        if (immobile)
+            player._controlManager.PlayerInput.DeactivateInput();
+        else
+            player._controlManager.PlayerInput.ActivateInput();
+    }
+
+    public void SetEnabled()
+    {
+        if (camera == null || !isInitialized)
+        {
+            //MelonLogger.Msg("our camera was null");
+            foreach (var item in Object.FindObjectsOfType<Camera>())
+            {
+                string name = $"{item.gameObject.name}";
+                int count = item.gameObject.GetComponents<MonoBehaviour>().Count;
+                if (name == "Camera" && count > 0)
+                {
+                    //MelonLogger.Msg("got a camera");
+                    game_camera = item;
+                    break;
+                }
+            }
+            if (!Initialize()) return;
+        }
+        if (camera != null)
+            camera.enabled = true;
+
+        //MelonLogger.Msg("moving screens");
+        //move cameras to top left
+        foreach (var item in Object.FindObjectsOfType<Camera>())
+        {
+            string name = $"{item.gameObject.name}";
+            if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+            {
+                //MelonLogger.Msg($"Moved {item.name} to the top left.");
+                item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+            }
+        }
+
+        if (inGameMain)
+        {
+            player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
+            TryImmobilizePlayer(true);
+        }
+        else
+        {
+            Screen.lockCursor = true;
+        }
+
+        isEnabled = true;
+        MelonLogger.Msg("Freecam enabled.");
+    }
+
+    //todo, use input system
+    public void UpdateMovement()
+    {
+        //only move when we are not moving the player
+        if (isEnabled && inCamera && camera is not null)
+        {
+            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftShiftKey", "isPressed"))
+                speed = defaultSpeed * 2.5f;
+            else
+                speed = defaultSpeed;
+
+            float dTime = Time.deltaTime;
+
+            //game_camera?.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
+
+            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "wKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
+            }
+            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "sKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.back * speed * dTime, Space.Self); ;
+            }
+
+            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "aKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.left * speed * dTime, Space.Self);
+            }
+            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.right * speed * dTime, Space.Self);
+            }
+
+            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "spaceKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.up * speed * dTime, Space.Self);
+            }
+            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftCtrlKey", "isPressed"))
+            {
+                camera.transform.Translate(Vector3.down * speed * dTime, Space.Self);
+            }
+
+            //does not work in game when the player is loaded
+            if (inGameMain && player is not null)
+            {
+                var value = player._controlManager.GetLookValue();
+                rotY += value.x * 0.8f;
+                rotX -= value.y * 0.8f;
+                MelonLogger.Msg($"{rotX}|{rotY}");
+            }
+            else
+            {
+                rotY += Mouse.current.delta.ReadValue().x;
+                rotX -= Mouse.current.delta.ReadValue().y;
+            }
+
+            camera.transform.get_rotation_Injected(out var oldRotation);
+            var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
+            GCHandle pinnedRotation = GCHandle.Alloc(newRotation, GCHandleType.Pinned);
+            camera.transform.set_rotation_Injected(ref newRotation);
+            pinnedRotation.Free();
+
+        }
+        else if (isInitialized && !isEnabled && camera is not null && player is not null)
+        {
+            player.Head.transform.get_position_Injected(out var playerPos);
+            GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
+            camera.transform.set_position_Injected(ref playerPos);
+            pinnedPos.Free();
+        }
+    }
+
+    private void CheckForToggle()
+    {
+        if (Il2CppSupport.GetProperty<bool, KeyControl>(Keyboard.current, "fKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        {
+            //MelonLogger.Msg("toggling");
+            if (Enabled)
+            {
+                SetDisabled();
+            }
+            else
+            {
+                SetEnabled();
+            }
+        }
+        if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "uKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        {
+            showUI = !showUI;
+        }
     }
 
     private void DisplayUI()
@@ -153,80 +309,80 @@ internal class FFreecam
 
     private bool Initialize()
     {
-        MelonLogger.Msg("initializing");
+        //MelonLogger.Msg("initializing");
         if (game_camera != null)
         {
-            MelonLogger.Msg("yoinking games camera");
+            //MelonLogger.Msg("yoinking games camera");
             //ObjectInfo.PrintHierarchy(game_camera.gameObject);
             camera = Object.Instantiate(game_camera.gameObject).GetComponent<Camera>();
+            //MelonLogger.Msg($"{camera.name}");
             camera.depth = -2;
+            //MelonLogger.Msg($"{camera.depth}");
             //camera.cullingMask |= 1 << 18; //see head
             camera.cullingMask |= ~0; //see all
+            //MelonLogger.Msg($"{camera.cullingMask}");
             camera.name = "Second Camera";
+            //MelonLogger.Msg($"{camera.name}");
             camera.enabled = false;
+            //MelonLogger.Msg($"{camera.enabled}");
             camera.gameObject.layer = 3; //0 is default
+            //MelonLogger.Msg($"{camera.gameObject.layer}");
             camera.cameraType = CameraType.Game;
+            //MelonLogger.Msg($"{camera.cameraType}");
             camera.hideFlags = HideFlags.HideAndDontSave;
+            var rect = new Rect(0f, 0f, 1f, 1f);
+            var handle = GCHandle.Alloc(rect, GCHandleType.Pinned);
+            camera.set_rect_Injected(ref rect);//starting left, bottom, extend up, right
+            handle.Free();
+            //MelonLogger.Msg($"{camera.hideFlags}");
 
-            for (int i = 0; i < camera.transform.GetChildCount(); i++)
+            for (int i = 0; i < camera.transform.childCount; i++)
             {
-                if (camera.transform.GetChild(i).gameObject != null) Object.DestroyImmediate(camera.transform.GetChild(i).gameObject);
+                var child = camera.transform.GetChild(i);
+                if (child.gameObject != null)
+                    Object.DestroyImmediate(child.gameObject);
             }
 
             Object.DestroyImmediate(camera.gameObject.GetComponent<CinemachineBrain>());
 
-            isInitialized = camera.gameObject.transform.gameObject.GetComponents<MonoBehaviour>().Count > 0;
+            isInitialized = camera.gameObject.GetComponents<MonoBehaviour>().Count > 0;
             //ObjectInfo.PrintHierarchy(camera.gameObject);
-            MelonLogger.Msg("our own camera was initialized");
+            //MelonLogger.Msg("our own camera was initialized");
             return true;
         }
         return false;
     }
 
-    private void CheckForToggle()
-    {
-        if (Il2CppSupport.GetProperty<bool, KeyControl>(Keyboard.current, "fKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
-        {
-            MelonLogger.Msg("toggling");
-            if (Enabled)
-            {
-                SetDisabled();
-            }
-            else
-            {
-                SetEnabled();
-            }
-        }
-        if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "uKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
-        {
-            showUI = !showUI;
-        }
-    }
-
-    private void Move()
+    private void Update()
     {
         //run freecam
-        if (isEnabled && player is not null && camera is not null)
+        if (isEnabled && camera is not null)
         {
             //only concern about two cameras at once when in game main
-            if (inGameMain)
+            if (inGameMain && player is not null)
             {
                 if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
                 {
                     inCamera = false;
-                    player.IsImmobile = false;
+                    TryImmobilizePlayer(false);
                     MelonLogger.Msg("Control moved to player.");
                 }
                 else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {
                     inCamera = true;
-                    player.IsImmobile = true;
+                    TryImmobilizePlayer(true);
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
                 if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {
-                    camera.transform.position = player.Head.transform.position;
-                    camera.transform.rotation = player.Head.transform.rotation;
+                    player.Head.transform.get_position_Injected(out var playerPos);
+                    GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
+                    camera.transform.set_position_Injected(ref playerPos);
+                    pinnedPos.Free();
+                    player.Head.transform.get_rotation_Injected(out var playerRot);
+                    GCHandle pinnedRot = GCHandle.Alloc(playerRot, GCHandleType.Pinned);
+                    camera.transform.set_rotation_Injected(ref playerRot);
+                    pinnedRot.Free();
                     MelonLogger.Msg("Freecam teleported to the player's head.");
                 }
             }
@@ -245,125 +401,32 @@ internal class FFreecam
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
             }
-            Update();
-        }
-    }
-
-    public void SetDisabled()
-    {
-        isEnabled = false;
-        if (camera is not null)
-            camera.enabled = false;
-        Screen.lockCursor = false;
-
-        //move cameras back
-        foreach (var item in Object.FindObjectsOfType<Camera>())
-        {
-            string name = Il2CppSupport.GetProperty<string, Camera>(item, "name");
-            if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && !gameCameraHidden)
             {
-                //MelonLogger.Msg($"Moved {item.name} back to fullscreen.");
-                item.rect = new Rect(0, 0, 1, 1);
-            }
-        }
-
-        if (player != null)
-        {
-            player.IsImmobile = false;
-        }
-
-        MelonLogger.Msg("Freecam disabled.");
-    }
-
-    public void SetEnabled()
-    {
-        if (camera == null || !isInitialized)
-        {
-            MelonLogger.Msg("our camera was null");
-            foreach (var item in Object.FindObjectsOfType<Camera>())
-            {
-                if (Il2CppSupport.GetProperty<string, Camera>(item, "name") == "camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
+                gameCameraHidden = true;
+                foreach (var item in Object.FindObjectsOfType<Camera>())
                 {
-                    MelonLogger.Msg("got a camera");
-                    game_camera = item;
-                    break;
+                    string name = $"{item.gameObject.name}";
+                    if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+                    {
+                        item.enabled = false;
+                    }
                 }
             }
-            if (!Initialize()) return;
-        }
-        else
-        {
-            camera.enabled = true;
-        }
-        //move cameras to top left
-        foreach (var item in Object.FindObjectsOfType<Camera>())
-        {
-            string name = Il2CppSupport.GetProperty<string, Camera>(item, "name");
-            if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
             {
-                //MelonLogger.Msg($"Moved {item.name} to the top left.");
-                item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);//starting left, bottom, extend up, right
-                break;
+                gameCameraHidden = false;
+                foreach (var item in Object.FindObjectsOfType<Camera>())
+                {
+                    string name = $"{item.gameObject.name}";
+                    if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+                    {
+                        item.enabled = true;
+                    }
+                }
+
             }
-        }
-
-        Screen.lockCursor = true;
-
-        inGameMain = Il2CppSupport.GetProperty<string, Scene>(SceneManager.GetActiveScene().BoxIl2CppObject(), "name") == "GameMain";
-        if (inGameMain)
-        {
-            player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
-            player.IsImmobile = true;
-        }
-
-        isEnabled = true;
-        MelonLogger.Msg("Freecam enabled.");
-    }
-
-    //todo, use input system
-    public void Update()
-    {
-        //only move when we are not moving the player
-        if (isEnabled && inCamera && camera is not null)
-        {
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftShiftKey", "isPressed"))
-                speed = defaultSpeed * 2.5f;
-            else
-                speed = defaultSpeed;
-
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "wKey", "isPressed"))
-                camera.transform.position += camera.transform.forward * speed * Time.deltaTime;
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "sKey", "isPressed"))
-                camera.transform.position -= camera.transform.forward * speed * Time.deltaTime;
-
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "aKey", "isPressed"))
-                camera.transform.position -= camera.transform.right * speed * Time.deltaTime;
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "isPressed"))
-                camera.transform.position += camera.transform.right * speed * Time.deltaTime;
-
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "spaceKey", "isPressed"))
-                camera.transform.position += camera.transform.up * speed * Time.deltaTime;
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftCtrlKey", "isPressed"))
-                camera.transform.position -= camera.transform.up * speed * Time.deltaTime;
-
-            //does not work in game when the player is loaded
-            if (inGameMain)
-            {
-                var value = PlayerController_GetLookValue();
-                rotY += value.x * 0.8f;
-                rotX -= value.y * 0.8f;
-            }
-            else
-            {
-                rotY += Mouse.current.delta.ReadValue().x;
-                rotX -= Mouse.current.delta.ReadValue().y;
-            }
-
-            camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
-        }
-        else if (isInitialized && camera is not null && player is not null)
-        {
-            camera.transform.position = player.Head.transform.position;
+            UpdateMovement();
         }
     }
 }
