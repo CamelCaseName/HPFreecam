@@ -1,26 +1,60 @@
-﻿
-using MelonLoader;
-using Il2CppInterop;
-using Il2CppInterop.Common;
-using Object = UnityEngine.Object;
-using Il2Cpp;
-using UnityEngine.InputSystem;
-using UnityEngine;
+﻿using Il2Cpp;
 using Il2CppCinemachine;
-using Il2CppSystem.Reflection;
 using Il2CppInterop.Runtime;
-using System.Collections.Generic;
-using Il2CppEekCharacterEngine;
+using Il2CppInterop.Runtime.Injection;
+using MelonLoader;
+using System;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
+using Object = UnityEngine.Object;
 
 namespace HPFreecam
 {
+    public static class SceneSupport
+    {
+        public static unsafe string GetName(this Scene scene)
+        {
+            var nativeSceneClass = Il2CppClassPointerStore.GetNativeClassPointer(typeof(Scene));
+            if (nativeSceneClass == IntPtr.Zero)
+            {
+                MelonLogger.Error("scene.get_name is missing and the workaround failed (class pointer was zero)");
+                return "scene names stripped";
+            }
+            var nativeMethod = IL2CPP.il2cpp_class_get_method_from_name(nativeSceneClass, "get_name", 0);
+            if (nativeMethod == IntPtr.Zero)
+            {
+                MelonLogger.Error("scene.get_name is missing and the workaround failed, all workarounds failed (method pointer for Scene.get_name() was zero)");
+                return "scene names stripped";
+            }
+            IntPtr* ptr = null;
+            IntPtr error = IntPtr.Zero;
+            var sceneHandle = GCHandle.Alloc(scene.handle, GCHandleType.Pinned);
+            if (sceneHandle.AddrOfPinnedObject() == IntPtr.Zero)
+            {
+                MelonLogger.Error("scene couldn't be pinned");
+                return "scene names stripped";
+            }
+            var nativeResult = IL2CPP.il2cpp_runtime_invoke(nativeMethod, sceneHandle.AddrOfPinnedObject(), (void**)ptr, ref error);
+            sceneHandle.Free();
+            if (nativeResult == IntPtr.Zero)
+            {
+                MelonLogger.Error("il2cpp_runtime_invoke on the native Scene.get_name failed (result pointer was zero)");
+                return "scene names stripped";
+            }
+            Il2CppException.RaiseExceptionIfNecessary(error);
+            return IL2CPP.Il2CppStringToManaged(nativeResult)!;
+        }
+    }
+
     public class Freecam : MelonMod
     {
-        private FFreecam freecam;
+        private FFreecam? freecam;
 
 #if DEBUG
-        public override void OnApplicationStart()
+        public override void OnInitializeMelon()
         {
             MelonLogger.Msg("Debug build of the freecam!");
         }
@@ -61,22 +95,23 @@ namespace HPFreecam
     //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
     internal class FFreecam
     {
-        private readonly PlayerControlManager PlayerControl = Object.FindObjectOfType<PlayerControlManager>();
         private readonly float rotRes = 0.15f;
         private const float defaultSpeed = 2.3f;
         private float speed = defaultSpeed;
-        private Camera camera;
-        private Camera game_camera;
+        private Camera? camera = null;
+        private Camera? game_camera = null;
         private bool inCamera = true;
         private bool showUI = false;
         private bool inGameMain = false;
         private bool isEnabled = false;
         private bool isInitialized = false;
-        private Rect uiPos = new Rect(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
-        private readonly GUILayoutOption[] Opt = new GUILayoutOption[0];
-        private Il2CppEekAddOns.HousePartyPlayerCharacter player = null;
+        private Rect uiPos = new(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
+        private readonly GUILayoutOption[] Opt = Array.Empty<GUILayoutOption>();
+        private Il2CppEekAddOns.HousePartyPlayerCharacter? player = null;
         private float rotX = 0f;
         private float rotY = 0f;
+        private Object? controller = null;
+        private IntPtr nativePlayerControllerGetLookValuePointer = IntPtr.Zero;
 
         public FFreecam()
         {
@@ -89,6 +124,29 @@ namespace HPFreecam
                     break;
                 }
             }
+            //initlialize the lookvalue stuff
+            _ = PlayerController_GetLookValue();
+        }
+
+        private unsafe Vector2 PlayerController_GetLookValue()
+        {
+            var scene = SceneManager.GetActiveScene();
+            if (scene.GetName() != "GameMain") return Vector2.zero;
+            IntPtr* parameterArray = null;
+            IntPtr nativeException = IntPtr.Zero;
+
+            if (controller == null || nativePlayerControllerGetLookValuePointer == IntPtr.Zero)
+            {
+                var nativeClass = IL2CPP.GetIl2CppClass("EekCharacterEngine.dll", "", "PlayerControlManager");
+                nativePlayerControllerGetLookValuePointer = IL2CPP.il2cpp_class_get_method_from_name(nativeClass, "GetLookValue", 0);
+                controller = Object.FindObjectOfType(Il2CppType.TypeFromPointer(nativeClass, "PlayerControlManager"));
+            }
+
+            var nativeController = IL2CPP.Il2CppObjectBaseToPtrNotNull(controller);
+            IntPtr resultVector2 = IL2CPP.il2cpp_runtime_invoke(nativePlayerControllerGetLookValuePointer, nativeController, (void**)parameterArray, ref nativeException);
+
+            Il2CppException.RaiseExceptionIfNecessary(nativeException);
+            return *(Vector2*)IL2CPP.il2cpp_object_unbox(resultVector2);
         }
 
         public bool Enabled()
@@ -103,6 +161,8 @@ namespace HPFreecam
 
             //update position and so on
             Move();
+
+            _ = PlayerController_GetLookValue();
         }
 
         public void OnGUI()
@@ -113,7 +173,7 @@ namespace HPFreecam
 
         private void DisplayUI()
         {
-            if (isEnabled && inGameMain && showUI)
+            if (isEnabled && inGameMain && showUI && player is not null && camera is not null && game_camera is not null)
             {
                 GUILayout.BeginArea(uiPos);
                 GUILayout.BeginVertical(Opt);
@@ -189,7 +249,7 @@ namespace HPFreecam
         private void Move()
         {
             //run freecam
-            if (isEnabled)
+            if (isEnabled && player is not null && camera is not null)
             {
                 //only concern about two cameras at once when in game main
                 if (inGameMain)
@@ -235,7 +295,8 @@ namespace HPFreecam
         public void SetDisabled()
         {
             isEnabled = false;
-            camera.enabled = false;
+            if (camera is not null)
+                camera.enabled = false;
             Screen.lockCursor = false;
 
             //move cameras back
@@ -270,9 +331,11 @@ namespace HPFreecam
                 }
                 if (!Initialize()) return;
             }
+            else
+            {
 
-            camera.enabled = true;
-
+                camera.enabled = true;
+            }
             //move cameras to top left
             foreach (var item in Object.FindObjectsOfType<Camera>())
             {
@@ -286,7 +349,7 @@ namespace HPFreecam
 
             Screen.lockCursor = true;
 
-            inGameMain = SceneManager.GetActiveScene().name == "GameMain";
+            inGameMain = SceneManager.GetActiveScene().GetName() == "GameMain";
             if (inGameMain)
             {
                 player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
@@ -301,7 +364,7 @@ namespace HPFreecam
         public void Update()
         {
             //only move when we are not moving the player
-            if (isEnabled && inCamera)
+            if (isEnabled && inCamera && camera is not null)
             {
                 if (Keyboard.current[Key.LeftShift].isPressed)
                     speed = defaultSpeed * 2.5f;
@@ -324,20 +387,21 @@ namespace HPFreecam
                     camera.transform.position -= camera.transform.up * speed * Time.deltaTime;
 
                 //does not work in game when the player is loaded
-                if (!inGameMain)
+                if (inGameMain)
+                {
+                    var value = PlayerController_GetLookValue();
+                    rotY += value.x * 0.8f;
+                    rotX -= value.y * 0.8f;
+                }
+                else
                 {
                     rotY += Mouse.current.delta.ReadValue().x;
                     rotX -= Mouse.current.delta.ReadValue().y;
                 }
-                else
-                {
-                    rotY += PlayerControl.GetLookValue().x * 0.8f;
-                    rotX -= PlayerControl.GetLookValue().y * 0.8f;
-                }
 
                 camera.transform.rotation = Quaternion.Lerp(camera.transform.rotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
             }
-            else if (isInitialized)
+            else if (isInitialized && camera is not null && player is not null)
             {
                 camera.transform.position = player.Head.transform.position;
             }
