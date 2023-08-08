@@ -155,10 +155,17 @@ internal class FFreecam
     private void TryImmobilizePlayer()
     {
         if (player is null) return;
+#if DEBUG
         if (inCamera)
             player._controlManager.PlayerInput.DeactivateInput();
         else
             player._controlManager.PlayerInput.ActivateInput();
+#else
+        if (inCamera)
+            player.field_Private_PlayerControlManager_0.PlayerInput.DeactivateInput();
+        else
+            player.field_Private_PlayerControlManager_0.PlayerInput.ActivateInput();
+#endif
     }
 
     public void SetEnabled()

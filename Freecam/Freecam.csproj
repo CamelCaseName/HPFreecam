@@ -9,70 +9,54 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="Il2CppCinemachine">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Il2CppCinemachine.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Il2CppEekCharacterEngine">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Il2CppEekCharacterEngine.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="Il2CppEekEvents">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Il2CppEekEvents.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Il2CppHouseParty">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Il2CppHouseParty.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Il2CppInterop.Runtime">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Il2Cppmscorlib">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="MelonLoader">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\net6\MelonLoader.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="Unity.InputSystem">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Unity.InputSystem.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="Unity.TextMeshPro">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\Unity.TextMeshPro.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.CoreModule">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.CoreModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.IMGUIModule">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.IMGUIModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.InputModule">
-			<HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.InputModule.dll</HintPath>
-			<Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.PhysicsModule">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.PhysicsModule.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.TextRenderingModule">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.UI">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.UI.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
-		<Reference Include="UnityEngine.UIModule">
-		  <HintPath>J:\House party\official\game\HP.1.3.0.Default_Winx64.RC2.CS10110_DevBuild\MelonLoader\Il2CppAssemblies\UnityEngine.UIModule.dll</HintPath>
-		  <Private>False</Private>
-		</Reference>
+	  <Reference Include="Assembly-CSharp">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Assembly-CSharp.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2CppCinemachine">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppCinemachine.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2CppInterop.Runtime">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2Cppmscorlib">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2Cppmscorlib.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2CppSystem">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppSystem.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="MelonLoader">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\net6\MelonLoader.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Unity.InputSystem">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.InputSystem.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="UnityEngine.CoreModule">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.CoreModule.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="UnityEngine.PhysicsModule">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.PhysicsModule.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="UnityEngine.TextRenderingModule">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="UnityEngine.UI">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.UI.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="UnityEngine.UIModule">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.UIModule.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
 	</ItemGroup>
 
 </Project>
