@@ -4,9 +4,9 @@
 
 Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
 
-## QuickStart MelonLoader
+## QuickStart MelonLoader (with custom patch)
 
-Make sure you have installed the game and atleast started the game once before you continue.
+Make sure you have installed the game and at least started the game once before you continue.
 
 1. Download [MelonLoader.Installer.exe](https://github.com/HerpDerpinstine/MelonLoader/releases/latest/download/MelonLoader.Installer.exe)
 2. Run MelonLoader.Installer.exe.
@@ -14,6 +14,9 @@ Make sure you have installed the game and atleast started the game once before y
 4. Select and Open the Game's EXE in your Game's Installation Folder.
 5. Select which Version of MelonLoader to install using the Drop-Down List. (Or leave it as-is for the Latest Version.)
 6. Click the INSTALL or RE-INSTALL button.
+7. Get the MelonLoader [patch from my fork here](https://github.com/CamelCaseName/MelonLoader/releases/latest/download/MelonLoaderPatch.zip)
+8. Unzip the patch and copy its content into the MelonLoader folder inside of House Party.
+9. Replace all files it prompts you to.
 
 After this the installation directory of the game should contain a new folder called `Mods`.
 Then Move the downloaded `.dll` into this folder and start the game.
