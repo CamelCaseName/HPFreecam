@@ -1,14 +1,12 @@
 ﻿using Il2CppCinemachine;
-using Il2CppEekCharacterEngine;
 using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
-using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.InputSystem.Controls;
-using UnityEngine.SceneManagement;
-using Il2CppException = Il2CppInterop.Runtime.Il2CppException;
+using UnityEngine.UI;
+using static Il2CppSystem.TypeIdentifiers;
 using Object = UnityEngine.Object;
 
 namespace Freecam;
@@ -18,11 +16,6 @@ public class Freecam : MelonMod
     private FFreecam? freecam;
 
 #if DEBUG
-    public override void OnGUI()
-    {
-        freecam?.OnGUI();
-    }
-
     public override void OnInitializeMelon()
     {
         MelonLogger.Msg("Debug build of the freecam!");
@@ -39,7 +32,7 @@ public class Freecam : MelonMod
         freecam?.OnUpdate();
 
 #if DEBUG
-        if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
         {
             foreach (var item in Object.FindObjectsOfType<Camera>())
             {
@@ -56,8 +49,8 @@ public class Freecam : MelonMod
 //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
 internal class FFreecam
 {
+    //todo add option to copy patricks camera to the freecam lol
     private const float defaultSpeed = 2.3f;
-    private readonly GUILayoutOption[] Opt = Array.Empty<GUILayoutOption>();
     private readonly float rotRes = 0.15f;
     private Camera? camera = null;
     private Camera? game_camera = null;
@@ -71,12 +64,18 @@ internal class FFreecam
     private float rotY = 0f;
     private bool showUI = false;
     private float speed = defaultSpeed;
-    private Rect uiPos = new(10, Screen.height * 0.3f, Screen.width * 0.3f, Screen.height * 0.2f);
+    private readonly Font ourFont = Font.GetDefault();
+    private readonly GameObject myGO = new();
+    private readonly GameObject myText;
+    private readonly Canvas myCanvas;
+    private readonly Text text;
+    private readonly RectTransform rectTransform;
+
     public FFreecam(string sceneName)
     {
         foreach (var item in Object.FindObjectsOfType<Camera>())
         {
-            if (Il2CppSupport.GetProperty<string, Camera>(item, "name") == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
+            if (HousePartySupport.GetProperty<string, Camera>(item, "name") == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
             {
                 game_camera = item;
                 Initialize();
@@ -84,15 +83,31 @@ internal class FFreecam
             }
         }
         inGameMain = sceneName == "GameMain";
+
+        // Canvas
+        myGO = new();
+        HousePartySupport.SetProperty(myGO, nameof(myGO.name), "test");
+
+        myCanvas = myGO.AddComponent<Canvas>();
+        HousePartySupport.SetProperty(myCanvas, nameof(myCanvas.renderMode), (int)RenderMode.ScreenSpaceOverlay);
+        myGO.AddComponent<CanvasScaler>();
+        myGO.AddComponent<GraphicRaycaster>();
+
+        // Text
+        myText = new GameObject();
+        HousePartySupport.SetProperty(myText, nameof(myText.name), "wibble");
+        myText.transform.parent = myGO.transform;
+
+        text = myText.AddComponent<Text>();
+        HousePartySupport.SetProperty(text, nameof(text.font), ourFont);
+
+        // Text position
+        rectTransform = text.GetComponent<RectTransform>();
+        rectTransform.localPosition = new Vector3(0, 0, 0);
+        rectTransform.sizeDelta = new Vector2(Screen.width / 2, Screen.height / 2);
     }
 
     public bool Enabled => isEnabled;
-
-    public void OnGUI()
-    {
-        //update ui
-        DisplayUI();
-    }
 
     public void OnUpdate()
     {
@@ -106,6 +121,7 @@ internal class FFreecam
     public void SetDisabled()
     {
         isEnabled = false;
+        inCamera = false;
         if (camera is not null)
             camera.enabled = false;
 
@@ -125,17 +141,16 @@ internal class FFreecam
 
         if (player != null)
         {
-            TryImmobilizePlayer(false);
+            TryImmobilizePlayer();
         }
 
         MelonLogger.Msg("Freecam disabled.");
     }
 
-    private void TryImmobilizePlayer(bool immobile)
+    private void TryImmobilizePlayer()
     {
         if (player is null) return;
-        Il2CppSupport.SetProperty<bool, Character>(player, nameof(player.IsImmobile), immobile);
-        if (immobile)
+        if (inCamera)
             player._controlManager.PlayerInput.DeactivateInput();
         else
             player._controlManager.PlayerInput.ActivateInput();
@@ -174,10 +189,11 @@ internal class FFreecam
             }
         }
 
+        inCamera = true;
         if (inGameMain)
         {
             player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
-            TryImmobilizePlayer(true);
+            TryImmobilizePlayer();
         }
         else
         {
@@ -194,7 +210,7 @@ internal class FFreecam
         //only move when we are not moving the player
         if (isEnabled && inCamera && camera is not null)
         {
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftShiftKey", "isPressed"))
+            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftShiftKey", "isPressed"))
                 speed = defaultSpeed * 2.5f;
             else
                 speed = defaultSpeed;
@@ -203,46 +219,36 @@ internal class FFreecam
 
             //game_camera?.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
 
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "wKey", "isPressed"))
+            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "wKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
             }
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "sKey", "isPressed"))
+            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "sKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.back * speed * dTime, Space.Self); ;
             }
 
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "aKey", "isPressed"))
+            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "aKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.left * speed * dTime, Space.Self);
             }
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "isPressed"))
+            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.right * speed * dTime, Space.Self);
             }
 
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "spaceKey", "isPressed"))
+            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "spaceKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.up * speed * dTime, Space.Self);
             }
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftCtrlKey", "isPressed"))
+            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftCtrlKey", "isPressed"))
             {
                 camera.transform.Translate(Vector3.down * speed * dTime, Space.Self);
             }
 
-            //does not work in game when the player is loaded
-            if (inGameMain && player is not null)
-            {
-                var value = player._controlManager.GetLookValue();
-                rotY += value.x * 0.8f;
-                rotX -= value.y * 0.8f;
-                MelonLogger.Msg($"{rotX}|{rotY}");
-            }
-            else
-            {
-                rotY += Mouse.current.delta.ReadValue().x;
-                rotX -= Mouse.current.delta.ReadValue().y;
-            }
+            var value = Mouse.current.delta.ReadValue();
+            rotY += value.x;
+            rotX -= value.y;
 
             camera.transform.get_rotation_Injected(out var oldRotation);
             var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
@@ -262,7 +268,7 @@ internal class FFreecam
 
     private void CheckForToggle()
     {
-        if (Il2CppSupport.GetProperty<bool, KeyControl>(Keyboard.current, "fKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "fKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
         {
             //MelonLogger.Msg("toggling");
             if (Enabled)
@@ -274,37 +280,45 @@ internal class FFreecam
                 SetEnabled();
             }
         }
-        if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "uKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "uKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
         {
             showUI = !showUI;
+            MelonLogger.Msg("UI " + (showUI ? "enabled" : "disabled"));
+            DisplayUI();
         }
     }
 
     private void DisplayUI()
     {
-        if (isEnabled && inGameMain && showUI && player is not null && camera is not null && game_camera is not null)
+        string toDisplay = string.Empty;
+        if (showUI && camera is not null && game_camera is not null)
         {
-            GUILayout.BeginArea(uiPos);
-            GUILayout.BeginVertical(Opt);
-            GUILayout.Label(
-                $"Player pos ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})" +
-                $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})", Opt);
-            GUILayout.Label(
-                $"Player rot ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})" +
-                $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})", Opt);
-
-            GUILayout.Label(
-                $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})" +
-                $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})", Opt);
             string lookingAt = "None";
             if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
+                lookingAt = $"{hit.transform.gameObject.name}";
+
+            if (player is null)
             {
-                lookingAt = hit.transform.gameObject.name;
+                var mousePos = Mouse.current.position.ReadValue();
+                var mouseDelta = Mouse.current.delta.ReadValue();
+                toDisplay = $"Mouse position ({mousePos.x}|{mousePos.y}) delta: ({mouseDelta.x}|{mouseDelta.y})" +
+                    $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})" +
+                    $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})" +
+                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})" +
+                    $"Freecam looking at {lookingAt}";
             }
-            GUILayout.Label($"Freecam looking at {lookingAt}", Opt);
-            GUILayout.EndVertical();
-            GUILayout.EndArea();
+            else
+            {
+                toDisplay = $"Player pos ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})" +
+                    $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})" +
+                    $"Player rot ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})" +
+                    $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})" +
+                    $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})" +
+                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})" +
+                    $"Freecam looking at {lookingAt}";
+            }
         }
+        HousePartySupport.SetProperty(text, nameof(text.text), toDisplay);
     }
 
     private bool Initialize()
@@ -361,19 +375,19 @@ internal class FFreecam
             //only concern about two cameras at once when in game main
             if (inGameMain && player is not null)
             {
-                if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
+                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
                 {
                     inCamera = false;
-                    TryImmobilizePlayer(false);
+                    TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to player.");
                 }
-                else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {
                     inCamera = true;
-                    TryImmobilizePlayer(true);
+                    TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
-                if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {
                     player.Head.transform.get_position_Injected(out var playerPos);
                     GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
@@ -388,20 +402,20 @@ internal class FFreecam
             }
             else
             {
-                if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
+                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
                 {
                     inCamera = false;
                     Screen.lockCursor = false;
                     MelonLogger.Msg("Control moved to the UI menu.");
                 }
-                else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {
                     inCamera = true;
                     Screen.lockCursor = true;
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
             }
-            if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && !gameCameraHidden)
+            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && !gameCameraHidden)
             {
                 gameCameraHidden = true;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -413,7 +427,7 @@ internal class FFreecam
                     }
                 }
             }
-            else if (Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && Il2CppSupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
             {
                 gameCameraHidden = false;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -424,7 +438,6 @@ internal class FFreecam
                         item.enabled = true;
                     }
                 }
-
             }
             UpdateMovement();
         }
