@@ -1,12 +1,9 @@
 ﻿using Il2CppCinemachine;
-using Il2CppInterop.Runtime;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using MelonLoader;
 using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
-using static Il2CppSystem.TypeIdentifiers;
 using Object = UnityEngine.Object;
 
 namespace Freecam;
@@ -14,6 +11,11 @@ namespace Freecam;
 public class Freecam : MelonMod
 {
     private FFreecam? freecam;
+
+    public override void OnGUI()
+    {
+        freecam?.OnGui();
+    }
 
 #if DEBUG
     public override void OnInitializeMelon()
@@ -50,26 +52,26 @@ public class Freecam : MelonMod
 internal class FFreecam
 {
     //todo add option to copy patricks camera to the freecam lol
-    private const float defaultSpeed = 2.3f;
-    private readonly float rotRes = 0.15f;
-    private Camera? camera = null;
-    private Camera? game_camera = null;
-    private bool inCamera = true;
     private bool gameCameraHidden = false;
-    private readonly bool inGameMain = false;
+    private bool inCamera = true;
     private bool isEnabled = false;
     private bool isInitialized = false;
-    private Il2CppEekAddOns.HousePartyPlayerCharacter? player = null;
+    private bool showUI = false;
+    private Camera? camera = null;
+    private Camera? game_camera = null;
+    private const float defaultSpeed = 2.3f;
     private float rotX = 0f;
     private float rotY = 0f;
-    private bool showUI = false;
     private float speed = defaultSpeed;
+    private Il2CppEekAddOns.HousePartyPlayerCharacter? player = null;
+    private readonly bool inGameMain = false;
+    private readonly Canvas myCanvas;
+    private readonly float rotRes = 0.15f;
     private readonly Font ourFont = Font.GetDefault();
     private readonly GameObject myGO = new();
     private readonly GameObject myText;
-    private readonly Canvas myCanvas;
-    private readonly Text text;
     private readonly RectTransform rectTransform;
+    private readonly Text text;
 
     public FFreecam(string sceneName)
     {
@@ -86,16 +88,15 @@ internal class FFreecam
 
         // Canvas
         myGO = new();
-        HousePartySupport.SetProperty(myGO, nameof(myGO.name), "test");
+        HousePartySupport.SetProperty(myGO, nameof(myGO.name), "Freecam UI");
 
         myCanvas = myGO.AddComponent<Canvas>();
         HousePartySupport.SetProperty(myCanvas, nameof(myCanvas.renderMode), (int)RenderMode.ScreenSpaceOverlay);
         myGO.AddComponent<CanvasScaler>();
-        myGO.AddComponent<GraphicRaycaster>();
 
         // Text
         myText = new GameObject();
-        HousePartySupport.SetProperty(myText, nameof(myText.name), "wibble");
+        HousePartySupport.SetProperty(myText, nameof(myText.name), "Freecam UI Container");
         myText.transform.parent = myGO.transform;
 
         text = myText.AddComponent<Text>();
@@ -104,7 +105,9 @@ internal class FFreecam
         // Text position
         rectTransform = text.GetComponent<RectTransform>();
         rectTransform.localPosition = new Vector3(0, 0, 0);
-        rectTransform.sizeDelta = new Vector2(Screen.width / 2, Screen.height / 2);
+        rectTransform.anchoredPosition = new(0, 0);
+        var screenSize = Screen.currentResolution;
+        rectTransform.sizeDelta = new Vector2(screenSize.width, screenSize.height);
     }
 
     public bool Enabled => isEnabled;
@@ -117,6 +120,8 @@ internal class FFreecam
         //update position and so on
         Update();
     }
+
+    public void OnGui() => DisplayUI();
 
     public void SetDisabled()
     {
@@ -301,20 +306,20 @@ internal class FFreecam
             {
                 var mousePos = Mouse.current.position.ReadValue();
                 var mouseDelta = Mouse.current.delta.ReadValue();
-                toDisplay = $"Mouse position ({mousePos.x}|{mousePos.y}) delta: ({mouseDelta.x}|{mouseDelta.y})" +
-                    $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})" +
-                    $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})" +
-                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})" +
+                toDisplay = $"Mouse position ({mousePos.x}|{mousePos.y}) delta: ({mouseDelta.x}|{mouseDelta.y})\n" +
+                    $" Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
+                    $" Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
+                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
                     $"Freecam looking at {lookingAt}";
             }
             else
             {
-                toDisplay = $"Player pos ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})" +
-                    $" Freecam pos ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})" +
-                    $"Player rot ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})" +
-                    $" Freecam rot ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})" +
-                    $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})" +
-                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})" +
+                toDisplay = $"Player position ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})\n" +
+                    $" Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
+                    $"Player rotation ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})\n" +
+                    $" Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
+                    $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})\n" +
+                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
                     $"Freecam looking at {lookingAt}";
             }
         }
