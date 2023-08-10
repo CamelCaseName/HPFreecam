@@ -27,7 +27,7 @@ Refer to [this document here](https://github.com/0x78f1935/HPMods) for further i
 
 
 | keys                   | action                                                                |
-|========================|=======================================================================|
+|------------------------|-----------------------------------------------------------------------|
 | ALT + F                | toggles the freecam on or off, last position is saved and resumed to. |
 | ALT + G                | reverts control back to the main camera, but leaves the freecam open. |
 |                        | So in Menus you can select stuff, in game you can walk around freely. |
