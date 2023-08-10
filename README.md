@@ -12,7 +12,7 @@ Make sure you have installed the game and at least started the game once before 
 2. Run MelonLoader.Installer.exe.
 3. Click the SELECT button.
 4. Select and HouseParty.exe from where the game is installed.
-5. Select which Version of MelonLoader to install using the Drop-Down List. (Or leave it as-is for the Latest Version.)
+5. Select latest Version of MelonLoader.
 6. Click the INSTALL or RE-INSTALL button.
 7. Get the MelonLoader [patch from my fork here](https://github.com/CamelCaseName/MelonLoader/releases/latest/download/MelonLoaderPatch.zip)
 8. Unzip the patch and copy the `MelonLoader` folder from within into House Party.
