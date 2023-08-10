@@ -1,4 +1,5 @@
 ﻿using Il2CppCinemachine;
+using Il2CppSystem;
 using MelonLoader;
 using System.Runtime.InteropServices;
 using UnityEngine;
@@ -72,6 +73,7 @@ internal class FFreecam
     private readonly GameObject myText;
     private readonly RectTransform rectTransform;
     private readonly Text text;
+    private DateTime lastImmobilizedPlayer;
 
     public FFreecam(string sceneName)
     {
@@ -398,6 +400,10 @@ internal class FFreecam
                     inCamera = true;
                     TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to the freecam.");
+                }
+                else if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Seconds > 3)
+                {
+                    TryImmobilizePlayer();
                 }
                 if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {

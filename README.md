@@ -11,11 +11,11 @@ Make sure you have installed the game and at least started the game once before 
 1. Download [MelonLoader.Installer.exe](https://github.com/HerpDerpinstine/MelonLoader/releases/latest/download/MelonLoader.Installer.exe)
 2. Run MelonLoader.Installer.exe.
 3. Click the SELECT button.
-4. Select and Open the Game's EXE in your Game's Installation Folder.
+4. Select and HouseParty.exe from where the game is installed.
 5. Select which Version of MelonLoader to install using the Drop-Down List. (Or leave it as-is for the Latest Version.)
 6. Click the INSTALL or RE-INSTALL button.
 7. Get the MelonLoader [patch from my fork here](https://github.com/CamelCaseName/MelonLoader/releases/latest/download/MelonLoaderPatch.zip)
-8. Unzip the patch and copy its content into the MelonLoader folder inside of House Party.
+8. Unzip the patch and copy the `MelonLoader` folder from within into House Party.
 9. Replace all files it prompts you to.
 
 After this the installation directory of the game should contain a new folder called `Mods`.
@@ -31,6 +31,7 @@ Refer to [this document here](https://github.com/0x78f1935/HPMods) for further i
 | ALT + F      | toggles the freecam on or off, last position is saved and resumed to. |
 | ALT + G      | reverts control back to the main camera, but leaves the freecam open. So in Menus you can select stuff, and in game you can walk around as usual.|
 | ALT + V      | teleports the freecam to the player's head when possible. |
+| ALT + H      | Hides the games own camera. |
 
 # Impressions
 
