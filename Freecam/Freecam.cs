@@ -37,10 +37,7 @@ public class Freecam : MelonMod
 #if DEBUG
         if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
         {
-            foreach (var item in Object.FindObjectsOfType<Camera>())
-            {
-                ObjectInfo.PrintHierarchy(item.gameObject);
-            }
+            
         }
 #endif
     }
@@ -404,6 +401,7 @@ internal class FFreecam
                 else if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Seconds > 3)
                 {
                     TryImmobilizePlayer();
+                    lastImmobilizedPlayer = DateTime.Now;
                 }
                 if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
                 {

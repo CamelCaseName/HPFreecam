@@ -1,8 +1,9 @@
 ﻿using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.InteropTypes;
-using Il2CppInterop.Runtime.Runtime;
 using MelonLoader;
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Il2CppException = Il2CppInterop.Runtime.Il2CppException;
@@ -60,8 +61,10 @@ public static class HousePartySupport
             resultObject = *(TResult*)IL2CPP.il2cpp_object_unbox(result);
         else if (typeof(TResult) == typeof(string))
             resultObject = (TResult)(object)IL2CPP.Il2CppStringToManaged(result)!;
+        else if (result != 0)
+            resultObject = IL2CPP.PointerToValueGeneric<TResult>(result, false, false)!;
         else
-            resultObject = (result != 0) ? Il2CppObjectPool.Get<TResult>(result) : default!;
+            resultObject = default!;
     }
 
     public static unsafe TResult GetProperty<TResult, TObject>(TObject source, string firstProperty, string secondProperty) where TObject : Il2CppObjectBase
@@ -130,8 +133,10 @@ public static class HousePartySupport
             resultObject = *(TResult*)IL2CPP.il2cpp_object_unbox(result);
         else if (typeof(TResult) == typeof(string))
             resultObject = (TResult)(object)IL2CPP.Il2CppStringToManaged(result)!;
+        else if (result != 0)
+            resultObject = IL2CPP.PointerToValueGeneric<TResult>(result, false, false)!;
         else
-            resultObject = (result != 0) ? Il2CppObjectPool.Get<TResult>(result) : default!;
+            resultObject = default!;
     }
 
     private static unsafe void GetNativeReturnTypeAndName(nint nativeMethod, out nint nativeFirstReturnTypeClass, out string nativeFirstReturnTypeName)
@@ -194,6 +199,36 @@ public static class HousePartySupport
 
         IL2CPP.il2cpp_runtime_invoke(nativeMethod, nativeSourceObject, (void**)param, ref nativeException);
         Il2CppException.RaiseExceptionIfNecessary(nativeException);
+    }
+
+    public static void AddEventListenerFront<TEventContainer>(TEventContainer eventContainer, string eventName, Delegate eventListener)
+    {
+        BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        FieldInfo? field = null;
+
+        Type domainType = typeof(TEventContainer);
+
+        while (field == null)
+        {
+            field = domainType.GetField(eventName, flags);
+            if (field == null)
+                domainType = domainType.BaseType!;
+        }
+
+        MulticastDelegate resolveDelegate = (MulticastDelegate)field.GetValue(eventContainer)!;
+        Delegate[] subscribers = resolveDelegate.GetInvocationList();
+
+        Delegate currentDelegate = resolveDelegate;
+        for (int i = 0; i < subscribers.Length; i++)
+            currentDelegate = Delegate.RemoveAll(currentDelegate, subscribers[i])!;
+
+        Delegate[] newSubscriptions = new Delegate[subscribers.Length + 1];
+        newSubscriptions[0] = eventListener;
+        Array.Copy(subscribers, 0, newSubscriptions, 1, subscribers.Length);
+
+        currentDelegate = Delegate.Combine(newSubscriptions)!;
+
+        field.SetValue(eventContainer, currentDelegate);
     }
 
     private static void Log(string msg)
