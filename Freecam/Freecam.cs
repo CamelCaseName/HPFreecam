@@ -35,7 +35,7 @@ public class Freecam : MelonMod
         freecam?.OnUpdate();
 
 #if DEBUG
-        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (Keyboard.current.dKey.wasPressedThisFrame") && Keyboard.current.leftAltKey.isPressed"))
         {
             
         }
@@ -76,7 +76,7 @@ internal class FFreecam
     {
         foreach (var item in Object.FindObjectsOfType<Camera>())
         {
-            if (HousePartySupport.GetProperty<string, Camera>(item, "name") == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
+            if (item.name == "Camera" && item.gameObject.GetComponents<MonoBehaviour>().Length > 0)
             {
                 game_camera = item;
                 Initialize();
@@ -86,20 +86,24 @@ internal class FFreecam
         inGameMain = sceneName == "GameMain";
 
         // Canvas
-        myGO = new();
-        HousePartySupport.SetProperty(myGO, nameof(myGO.name), "Freecam UI");
+        myGO = new()
+        {
+            name = "Freecam UI"
+        };
 
         myCanvas = myGO.AddComponent<Canvas>();
-        HousePartySupport.SetProperty(myCanvas, nameof(myCanvas.renderMode), (int)RenderMode.ScreenSpaceOverlay);
+        myCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
         myGO.AddComponent<CanvasScaler>();
 
         // Text
-        myText = new GameObject();
-        HousePartySupport.SetProperty(myText, nameof(myText.name), "Freecam UI Container");
+        myText = new GameObject
+        {
+            name = "Freecam UI Container"
+        };
         myText.transform.parent = myGO.transform;
 
         text = myText.AddComponent<Text>();
-        HousePartySupport.SetProperty(text, nameof(text.font), ourFont);
+        text.font = ourFont;
 
         // Text position
         rectTransform = text.GetComponent<RectTransform>();
@@ -221,7 +225,7 @@ internal class FFreecam
         //only move when we are not moving the player
         if (isEnabled && inCamera && camera is not null)
         {
-            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftShiftKey", "isPressed"))
+            if (Keyboard.current.leftShiftKey.isPressed)
                 speed = defaultSpeed * 2.5f;
             else
                 speed = defaultSpeed;
@@ -230,29 +234,29 @@ internal class FFreecam
 
             //game_camera?.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
 
-            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "wKey", "isPressed"))
+            if (Keyboard.current.wKey.isPressed)
             {
                 camera.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
             }
-            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "sKey", "isPressed"))
+            else if (Keyboard.current.sKey.isPressed)
             {
                 camera.transform.Translate(Vector3.back * speed * dTime, Space.Self); ;
             }
 
-            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "aKey", "isPressed"))
+            if (Keyboard.current.aKey.isPressed)
             {
                 camera.transform.Translate(Vector3.left * speed * dTime, Space.Self);
             }
-            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "dKey", "isPressed"))
+            else if (Keyboard.current.dKey.isPressed)
             {
                 camera.transform.Translate(Vector3.right * speed * dTime, Space.Self);
             }
 
-            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "spaceKey", "isPressed"))
+            if (Keyboard.current.spaceKey.isPressed)
             {
                 camera.transform.Translate(Vector3.up * speed * dTime, Space.Self);
             }
-            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftCtrlKey", "isPressed"))
+            else if (Keyboard.current.leftCtrlKey.isPressed)
             {
                 camera.transform.Translate(Vector3.down * speed * dTime, Space.Self);
             }
@@ -279,7 +283,7 @@ internal class FFreecam
 
     private void CheckForToggle()
     {
-        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "fKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (Keyboard.current.fKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
         {
             //MelonLogger.Msg("toggling");
             if (Enabled)
@@ -291,7 +295,7 @@ internal class FFreecam
                 SetEnabled();
             }
         }
-        if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "uKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+        if (Keyboard.current.uKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
         {
             showUI = !showUI;
             MelonLogger.Msg("UI " + (showUI ? "enabled" : "disabled"));
@@ -329,7 +333,7 @@ internal class FFreecam
                     $"Freecam looking at {lookingAt}";
             }
         }
-        HousePartySupport.SetProperty(text, nameof(text.text), toDisplay);
+        text.text = toDisplay;
     }
 
     private bool Initialize()
@@ -386,13 +390,13 @@ internal class FFreecam
             //only concern about two cameras at once when in game main
             if (inGameMain && player is not null)
             {
-                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
+                if (Keyboard.current.gKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && inCamera)
                 {
                     inCamera = false;
                     TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to player.");
                 }
-                else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                else if (Keyboard.current.gKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
                 {
                     inCamera = true;
                     TryImmobilizePlayer();
@@ -403,7 +407,7 @@ internal class FFreecam
                     TryImmobilizePlayer();
                     lastImmobilizedPlayer = DateTime.Now;
                 }
-                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "vKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                if (Keyboard.current.vKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
                 {
                     player.Head.transform.get_position_Injected(out var playerPos);
                     GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
@@ -418,20 +422,20 @@ internal class FFreecam
             }
             else
             {
-                if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && inCamera)
+                if (Keyboard.current.gKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && inCamera)
                 {
                     inCamera = false;
                     Screen.lockCursor = false;
                     MelonLogger.Msg("Control moved to the UI menu.");
                 }
-                else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "gKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+                else if (Keyboard.current.gKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
                 {
                     inCamera = true;
                     Screen.lockCursor = true;
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
             }
-            if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed") && !gameCameraHidden)
+            if (Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && !gameCameraHidden)
             {
                 gameCameraHidden = true;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -443,7 +447,7 @@ internal class FFreecam
                     }
                 }
             }
-            else if (HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "hKey", "wasPressedThisFrame") && HousePartySupport.GetProperty<bool, Keyboard>(Keyboard.current, "leftAltKey", "isPressed"))
+            else if (Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
             {
                 gameCameraHidden = false;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
