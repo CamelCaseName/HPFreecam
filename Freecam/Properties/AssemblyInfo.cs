@@ -34,7 +34,7 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
-[assembly: MelonInfo(typeof(Freecam.Freecam), "Freecam", 2, 1, 1, "Lenny")]
+[assembly: MelonInfo(typeof(Freecam.Freecam), "Freecam", 2, 1, 2, "Lenny")]
 [assembly: MelonGame("Eek.House Party")]
 [assembly: MelonColor(System.ConsoleColor.DarkMagenta)]
 //[assembly: MelonAdditionalDependencies("HousePartyPlugin.dll")]

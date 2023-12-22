@@ -1,4 +1,5 @@
 ﻿using Il2CppCinemachine;
+using Il2CppEekCharacterEngine;
 using Il2CppSystem;
 using MelonLoader;
 using System.Runtime.InteropServices;
@@ -61,7 +62,7 @@ internal class FFreecam
     private float rotX = 0f;
     private float rotY = 0f;
     private float speed = defaultSpeed;
-    private Il2CppEekAddOns.HousePartyPlayerCharacter? player = null;
+    private PlayerCharacter? player = null;
     private readonly bool inGameMain = false;
     private readonly Canvas myCanvas;
     private readonly float rotRes = 0.15f;
@@ -158,17 +159,10 @@ internal class FFreecam
     private void TryImmobilizePlayer()
     {
         if (player is null) return;
-#if DEBUG
         if (inCamera)
             player._controlManager.PlayerInput.DeactivateInput();
         else
             player._controlManager.PlayerInput.ActivateInput();
-#else
-        if (inCamera)
-            player.field_Private_PlayerControlManager_0.PlayerInput.DeactivateInput();
-        else
-            player.field_Private_PlayerControlManager_0.PlayerInput.ActivateInput();
-#endif
     }
 
     public void SetEnabled()
@@ -207,7 +201,7 @@ internal class FFreecam
         inCamera = true;
         if (inGameMain)
         {
-            player = Object.FindObjectOfType<Il2CppEekAddOns.HousePartyPlayerCharacter>();
+            player = Object.FindObjectOfType<PlayerCharacter>();
             TryImmobilizePlayer();
         }
         else

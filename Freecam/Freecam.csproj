@@ -17,6 +17,18 @@
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppCinemachine.dll</HintPath>
 	    <Private>False</Private>
 	  </Reference>
+	  <Reference Include="Il2CppEekCharacterEngine">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppEekCharacterEngine.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2CppEekEvents">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppEekEvents.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
+	  <Reference Include="Il2CppEekUI">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppEekUI.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
 	  <Reference Include="Il2CppInterop.Runtime">
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\net6\Il2CppInterop.Runtime.dll</HintPath>
 	    <Private>False</Private>
