@@ -36,9 +36,9 @@ public class Freecam : MelonMod
         freecam?.OnUpdate();
 
 #if DEBUG
-        if (Keyboard.current.dKey.wasPressedThisFrame") && Keyboard.current.leftAltKey.isPressed"))
+        if (Keyboard.current.dKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
         {
-            
+
         }
 #endif
     }
@@ -55,7 +55,11 @@ internal class FFreecam
     private bool inCamera = true;
     private bool isEnabled = false;
     private bool isInitialized = false;
+#if DEBUG
+    private bool showUI = true;
+#else
     private bool showUI = false;
+#endif
     private Camera? camera = null;
     private Camera? game_camera = null;
     private const float defaultSpeed = 2.3f;
@@ -64,12 +68,11 @@ internal class FFreecam
     private float speed = defaultSpeed;
     private PlayerCharacter? player = null;
     private readonly bool inGameMain = false;
-    private readonly Canvas myCanvas;
+    private readonly Canvas canvas;
     private readonly float rotRes = 0.15f;
-    private readonly Font ourFont = Font.GetDefault();
-    private readonly GameObject myGO = new();
-    private readonly GameObject myText;
-    private readonly RectTransform rectTransform;
+    private readonly GameObject CanvasGO = new();
+    private readonly Toggle allowHDRComp;
+    private readonly Slider fieldOfViewComp;
     private readonly Text text;
     private DateTime lastImmobilizedPlayer;
 
@@ -87,31 +90,42 @@ internal class FFreecam
         inGameMain = sceneName == "GameMain";
 
         // Canvas
-        myGO = new()
+        CanvasGO = new()
         {
             name = "Freecam UI"
         };
 
-        myCanvas = myGO.AddComponent<Canvas>();
-        myCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        myGO.AddComponent<CanvasScaler>();
+        canvas = CanvasGO.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        CanvasGO.AddComponent<CanvasScaler>();
+        CanvasGO.AddComponent<GraphicRaycaster>();
 
         // Text
-        myText = new GameObject
-        {
-            name = "Freecam UI Container"
-        };
-        myText.transform.parent = myGO.transform;
+        var TextContainer = new GameObject { name = "Freecam Text Container" };
+        TextContainer.transform.parent = CanvasGO.transform;
+        text = TextContainer.AddComponent<Text>();
+        text.font = Font.GetDefault();
+        text.SetPosition(new(0, 0));
 
-        text = myText.AddComponent<Text>();
-        text.font = ourFont;
+        if (camera is null) return;
+        MelonLogger.Msg("Creating settings for the Camera");
+        FreecamUI.Initialize();
 
-        // Text position
-        rectTransform = text.GetComponent<RectTransform>();
-        rectTransform.localPosition = new Vector3(0, 0, 0);
-        rectTransform.anchoredPosition = new(0, 0);
-        var screenSize = Screen.currentResolution;
-        rectTransform.sizeDelta = new Vector2(screenSize.width, screenSize.height);
+        var HDRContainer = FreecamUI.MakeToggle(CanvasGO, "HDR");
+        allowHDRComp = HDRContainer.GetComponent<Toggle>();
+        allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
+        //allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
+        allowHDRComp.SetPosition(new(0, -400));
+
+        //var FOVContainer = new GameObject { name = "Freecam FOV Container" };
+        //FOVContainer.transform.parent = CanvasGO.transform;
+        //fieldOfViewComp = FOVContainer.AddComponent<Slider>();
+        //fieldOfViewComp.maxValue = 179;
+        //fieldOfViewComp.minValue = 1;
+        //fieldOfViewComp.SetValueWithoutNotify(camera!.fieldOfView);
+        //fieldOfViewComp.onValueChanged.AddListener(new System.Action<float>((float v) => camera!.fieldOfView = v));
+        //fieldOfViewComp.SetPosition(new(0, -450));
+
     }
 
     public bool Enabled => isEnabled;
@@ -302,6 +316,7 @@ internal class FFreecam
         string toDisplay = string.Empty;
         if (showUI && camera is not null && game_camera is not null)
         {
+            CanvasGO.active = true;
             string lookingAt = "None";
             if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
                 lookingAt = $"{hit.transform.gameObject.name}";
@@ -320,12 +335,16 @@ internal class FFreecam
             {
                 toDisplay = $"Player position ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})\n" +
                     $" Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
-                    $"Player rotation ({player.transform.rotation.eulerAngles.x:0.00}|{player.transform.rotation.eulerAngles.y:0.00}|{player.transform.rotation.eulerAngles.z:0.00})\n" +
+                    $"Player rotation ({game_camera.transform.rotation.eulerAngles.x:0.00}|{game_camera.transform.rotation.eulerAngles.y:0.00}|{game_camera.transform.rotation.eulerAngles.z:0.00})\n" +
                     $" Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
                     $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})\n" +
                     $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
                     $"Freecam looking at {lookingAt}";
             }
+        }
+        else
+        {
+            CanvasGO.active = false;
         }
         text.text = toDisplay;
     }
@@ -341,10 +360,11 @@ internal class FFreecam
             //MelonLogger.Msg($"{camera.name}");
             camera.depth = -2;
             //MelonLogger.Msg($"{camera.depth}");
+            //todo add as setting
             //camera.cullingMask |= 1 << 18; //see head
             camera.cullingMask |= ~0; //see all
             //MelonLogger.Msg($"{camera.cullingMask}");
-            camera.name = "Second Camera";
+            camera.name = "Freecam Camera";
             //MelonLogger.Msg($"{camera.name}");
             camera.enabled = false;
             //MelonLogger.Msg($"{camera.enabled}");

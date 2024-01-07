@@ -71,4 +71,8 @@
 	  </Reference>
 	</ItemGroup>
 
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	  <Exec Command="copy F:\Lenny\source\repos\HPFreecam\Freecam\bin\Debug\net6.0\Freecam.dll &quot;G:\SteamLibrary\steamapps\common\House Party\Mods\Freecam.dll&quot; /y" />
+	</Target>
+
 </Project>
