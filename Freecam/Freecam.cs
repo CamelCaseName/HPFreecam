@@ -111,11 +111,18 @@ internal class FFreecam
         MelonLogger.Msg("Creating settings for the Camera");
         FreecamUI.Initialize();
 
-        var HDRContainer = FreecamUI.MakeToggle(CanvasGO, "HDR");
-        allowHDRComp = HDRContainer.GetComponent<Toggle>();
+        _ = FreecamUI.CreateToggle(CanvasGO, "HDR", out allowHDRComp, out _);
+        //allowHDRComp = HDRContainer.GetComponent<Toggle>();
         allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
         //allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
-        allowHDRComp.SetPosition(new(0, -400));
+        allowHDRComp.SetPosition(new(100, 500));
+
+        _ = FreecamUI.CreateSlider(FreecamUI.CreateUIObject("SliderContainer", CanvasGO), "FOV", out fieldOfViewComp);
+        fieldOfViewComp.maxValue = 179;
+        fieldOfViewComp.minValue = 1;
+        fieldOfViewComp.SetValueWithoutNotify(camera!.fieldOfView);
+        fieldOfViewComp.onValueChanged.AddListener(new System.Action<float>((float v) => camera!.fieldOfView = v));
+        fieldOfViewComp.SetPosition(new(100, 450));
 
         //var FOVContainer = new GameObject { name = "Freecam FOV Container" };
         //FOVContainer.transform.parent = CanvasGO.transform;

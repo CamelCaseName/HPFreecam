@@ -22,8 +22,8 @@ internal static class FreecamUI
     {
         var rect = behaviour.GetComponent<RectTransform>();
         rect.localPosition = new Vector3(0, 0, 0);
-        rect.anchoredPosition = pos;
         rect.sizeDelta = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
+        rect.anchoredPosition = pos;
     }
 
     internal static void Initialize()
@@ -404,7 +404,7 @@ internal static class FreecamUI
     // Automatically deselect buttons when clicked.
     internal static void SetButtonDeselectListener(Button button)
     {
-        button.onClick.AddListener(new System.Action(() =>
+        button.onClick.AddListener(new Action(() =>
         {
             button.OnDeselect(null);
         }));
@@ -528,7 +528,7 @@ internal static class FreecamUI
         SetDefaultSelectableValues(toggle);
         // need a second reference so we can use it inside the lambda, since 'toggle' is an out var.
         Toggle t2 = toggle;
-        toggle.onValueChanged.AddListener(new System.Action<bool>((bool _) => { t2.OnDeselect(null); }));
+        toggle.onValueChanged.AddListener(new Action<bool>((bool _) => { t2.OnDeselect(null); }));
 
         // Check mark background
 
@@ -549,7 +549,7 @@ internal static class FreecamUI
 
         GameObject labelObj = CreateUIObject("Label", toggleObj);
         text = labelObj.AddComponent<Text>();
-        text.text = "";
+        text.text = name;
         text.alignment = TextAnchor.MiddleLeft;
         SetDefaultTextValues(text);
 
