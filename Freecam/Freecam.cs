@@ -72,7 +72,10 @@ internal class FFreecam
     private readonly float rotRes = 0.15f;
     private readonly GameObject CanvasGO = new();
     private readonly Toggle allowHDRComp;
-    private readonly Slider fieldOfViewComp;
+    private readonly Toggle allowMSAAComp;
+    private readonly Toggle usePhysicalPropertiesComp;
+    private readonly InputField aspectComp;
+    private readonly InputField fieldOfViewComp;
     private readonly Text text;
     private DateTime lastImmobilizedPlayer;
 
@@ -101,7 +104,7 @@ internal class FFreecam
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         CanvasGO.AddComponent<GraphicRaycaster>();
 
-        _ = FreecamUI.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.15f), new(0, Screen.height * 0.85f), out var contentHolder);
+        _ = FreecamUI.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.3f), new(0, Screen.height * 0.7f), out var contentHolder);
         text = FreecamUI.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
@@ -112,11 +115,52 @@ internal class FFreecam
         allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
         allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
 
-        _ = FreecamUI.CreateSlider(contentHolder, "FOV", out fieldOfViewComp);
-        fieldOfViewComp.maxValue = 179;
-        fieldOfViewComp.minValue = 1;
-        fieldOfViewComp.SetValueWithoutNotify(camera!.fieldOfView);
-        fieldOfViewComp.onValueChanged.AddListener(new System.Action<float>((float v) => camera!.fieldOfView = v));
+        _ = FreecamUI.CreateToggle(contentHolder, "MSAA", out allowMSAAComp, out _);
+        allowMSAAComp.SetIsOnWithoutNotify(camera!.allowMSAA);
+        allowMSAAComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowMSAA = v));
+
+        var aspectGO = FreecamUI.CreateUIObject("slider container", contentHolder);
+        _ = FreecamUI.SetLayoutGroup<HorizontalLayoutGroup>(aspectGO, true, true, 0, 2, 2, 2, 2);
+        aspectComp = FreecamUI.CreateInputField(aspectGO, "Aspect", camera!.aspect.ToString()).GetComponent<InputField>();
+        aspectComp.contentType = InputField.ContentType.DecimalNumber;
+        aspectComp.characterValidation = InputField.CharacterValidation.Decimal;
+        aspectComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.aspect = float.Parse(s)));
+        _ = FreecamUI.CreateLabel(aspectGO, "aspect name", " aspect");
+
+        var sliderGO = FreecamUI.CreateUIObject("fov container", contentHolder);
+        _ = FreecamUI.SetLayoutGroup<HorizontalLayoutGroup>(sliderGO, true, true, 0, 2, 2, 2, 2);
+        fieldOfViewComp = FreecamUI.CreateInputField(sliderGO, "FOV", camera!.fieldOfView.ToString()).GetComponent<InputField>();
+        fieldOfViewComp.contentType = InputField.ContentType.DecimalNumber;
+        fieldOfViewComp.characterValidation = InputField.CharacterValidation.Decimal;
+        fieldOfViewComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.fieldOfView = float.Parse(s)));
+        _ = FreecamUI.CreateLabel(sliderGO, "fov name", " FOV");
+
+        //physics settings require so much space we just spawn a new window
+
+        _ = FreecamUI.CreateToggle(contentHolder, "usePhysicalProperties", out usePhysicalPropertiesComp, out _);
+        usePhysicalPropertiesComp.SetIsOnWithoutNotify(camera!.usePhysicalProperties);
+        usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.usePhysicalProperties = v));
+        usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => TogglePhysicalPropertiesView(v)));
+
+        /*
+         * anamorphism
+         * apurture
+         * barrelClipping
+         * bladeCount
+         * curvature
+         * focalLength
+         * focusDistance
+         * iso
+         * lensShift
+         * orthographic
+         * sensorSize
+         * shutterSpeed
+         */
+    }
+
+    public void TogglePhysicalPropertiesView(bool visible)
+    {
+
     }
 
     public bool Enabled => isEnabled;
@@ -307,7 +351,7 @@ internal class FFreecam
         string toDisplay = string.Empty;
         if (showUI && camera is not null && game_camera is not null)
         {
-            CanvasGO.active = true; 
+            CanvasGO.active = true;
             canvas.scaleFactor = 1.0f;
             string lookingAt = "None";
             if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
