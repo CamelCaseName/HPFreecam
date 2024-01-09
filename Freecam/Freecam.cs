@@ -97,42 +97,26 @@ internal class FFreecam
 
         canvas = CanvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        CanvasGO.AddComponent<CanvasScaler>();
+        var scaler = CanvasGO.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         CanvasGO.AddComponent<GraphicRaycaster>();
 
-        // Text
-        var TextContainer = new GameObject { name = "Freecam Text Container" };
-        TextContainer.transform.parent = CanvasGO.transform;
-        text = TextContainer.AddComponent<Text>();
-        text.font = Font.GetDefault();
-        text.SetPosition(new(0, 0));
+        _ = FreecamUI.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.15f), new(0, Screen.height * 0.85f), out var contentHolder);
+        text = FreecamUI.CreateLabel(contentHolder, "Freecam info text", "");
+        text.fontSize = 12;
 
         if (camera is null) return;
         MelonLogger.Msg("Creating settings for the Camera");
-        FreecamUI.Initialize();
 
-        _ = FreecamUI.CreateToggle(CanvasGO, "HDR", out allowHDRComp, out _);
-        //allowHDRComp = HDRContainer.GetComponent<Toggle>();
+        _ = FreecamUI.CreateToggle(contentHolder, "HDR", out allowHDRComp, out _);
         allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
-        //allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
-        allowHDRComp.SetPosition(new(100, 500));
+        allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
 
-        _ = FreecamUI.CreateSlider(FreecamUI.CreateUIObject("SliderContainer", CanvasGO), "FOV", out fieldOfViewComp);
+        _ = FreecamUI.CreateSlider(contentHolder, "FOV", out fieldOfViewComp);
         fieldOfViewComp.maxValue = 179;
         fieldOfViewComp.minValue = 1;
         fieldOfViewComp.SetValueWithoutNotify(camera!.fieldOfView);
         fieldOfViewComp.onValueChanged.AddListener(new System.Action<float>((float v) => camera!.fieldOfView = v));
-        fieldOfViewComp.SetPosition(new(100, 450));
-
-        //var FOVContainer = new GameObject { name = "Freecam FOV Container" };
-        //FOVContainer.transform.parent = CanvasGO.transform;
-        //fieldOfViewComp = FOVContainer.AddComponent<Slider>();
-        //fieldOfViewComp.maxValue = 179;
-        //fieldOfViewComp.minValue = 1;
-        //fieldOfViewComp.SetValueWithoutNotify(camera!.fieldOfView);
-        //fieldOfViewComp.onValueChanged.AddListener(new System.Action<float>((float v) => camera!.fieldOfView = v));
-        //fieldOfViewComp.SetPosition(new(0, -450));
-
     }
 
     public bool Enabled => isEnabled;
@@ -323,7 +307,8 @@ internal class FFreecam
         string toDisplay = string.Empty;
         if (showUI && camera is not null && game_camera is not null)
         {
-            CanvasGO.active = true;
+            CanvasGO.active = true; 
+            canvas.scaleFactor = 1.0f;
             string lookingAt = "None";
             if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
                 lookingAt = $"{hit.transform.gameObject.name}";
@@ -332,10 +317,11 @@ internal class FFreecam
             {
                 var mousePos = Mouse.current.position.ReadValue();
                 var mouseDelta = Mouse.current.delta.ReadValue();
-                toDisplay = $"Mouse position ({mousePos.x}|{mousePos.y}) delta: ({mouseDelta.x}|{mouseDelta.y})\n" +
-                    $" Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
-                    $" Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
-                    $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
+                toDisplay = $"Mouse position ({mousePos.x}|{mousePos.y})\n" +
+                    $"Mouse delta: ({mouseDelta.x}|{mouseDelta.y})\n" +
+                    $"Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
+                    $"Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
+                    $"Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
                     $"Freecam looking at {lookingAt}";
             }
             else

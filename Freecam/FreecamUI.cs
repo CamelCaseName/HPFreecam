@@ -2,18 +2,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-
 //adapted and simplified from UniverseLib https://github.com/sinai-dev/UniverseLib/blob/main/src/UI/UIFactory.cs
 //originally by SinaiDev, reused under lgpl2.1 now 3
 internal static class FreecamUI
 {
-    internal static Sprite background;
-    internal static Sprite checkMark;
-    internal static Sprite foldOutOpen;
-    internal static Sprite foldOutClosed;
-    internal static Sprite mask;
-    internal static Sprite sprite;
-    internal static Sprite knob;
     internal static Vector2 largeElementSize = new(100, 30);
     internal static Vector2 smallElementSize = new(25, 25);
     internal static Color defaultTextColor = Color.white;
@@ -24,98 +16,6 @@ internal static class FreecamUI
         rect.localPosition = new Vector3(0, 0, 0);
         rect.sizeDelta = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
         rect.anchoredPosition = pos;
-    }
-
-    internal static void Initialize()
-    {
-        foreach (Sprite _sprite in Resources.FindObjectsOfTypeAll<Sprite>())
-        {
-            switch (_sprite.name)
-            {
-                case "UISprite":
-                    sprite = _sprite;
-                    break;
-                case "UIMask":
-                    mask = _sprite;
-                    break;
-                case "Knob":
-                    knob = _sprite;
-                    break;
-                case "UIFoldOutClosed":
-                    foldOutClosed = _sprite;
-                    break;
-                case "UIFoldOutOpened":
-                    foldOutOpen = _sprite;
-                    break;
-                case "Checkmark":
-                    checkMark = _sprite;
-                    break;
-                case "InputFieldBackground":
-                    background = _sprite;
-                    break;
-            }
-        }
-    }
-
-    internal static GameObject MakeToggle(GameObject canvas, string Name)
-    {
-        //1.Create a *Toggle* GameObject then make it child of the *Canvas*.
-
-        GameObject toggle = new GameObject("Toggle" + Name);
-        toggle.transform.SetParent(canvas.transform);
-        //toggle.layer = LayerMask.NameToLayer("UI");
-
-        //2.Create a Background GameObject then make it child of the Toggle GameObject.
-        GameObject backGround = new GameObject("Background" + Name);
-        backGround.transform.SetParent(toggle.transform);
-        //bg.layer = LayerMask.NameToLayer("UI");
-
-        //3.Create a Checkmark GameObject then make it child of the Background GameObject.
-        GameObject checkMarkGO = new GameObject("Checkmark" + Name);
-        checkMarkGO.transform.SetParent(backGround.transform);
-        //chmk.layer = LayerMask.NameToLayer("UI");
-
-        //4.Create a Label GameObject then make it child of the Toggle GameObject.
-        GameObject label = new GameObject("Label" + Name);
-        label.transform.SetParent(toggle.transform);
-        //lbl.layer = LayerMask.NameToLayer("UI");
-
-        //5.Now attach components like Image, Text and Toggle to each GameObject like it appears in the Editor.
-        //Attach Text to label
-        Text text = label.AddComponent<Text>();
-        text.text = Name;
-        text.font = Font.GetDefault();
-        text.lineSpacing = 1;
-        RectTransform txtRect = text.GetComponent<RectTransform>();
-        txtRect.anchorMin = new Vector2(0, 0);
-        txtRect.anchorMax = new Vector2(1, 1);
-        txtRect.localPosition = new Vector3(0, 0, 0);
-        txtRect.sizeDelta = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
-
-        //Attach Image Component to the Checkmark
-        Image checkMarkImage = checkMarkGO.AddComponent<Image>();
-        checkMarkImage.sprite = checkMark;
-        checkMarkImage.type = Image.Type.Simple;
-
-        //Attach Image Component to the Background
-        Image bgImage = backGround.AddComponent<Image>();
-        bgImage.sprite = background;
-        bgImage.type = Image.Type.Sliced;
-        RectTransform bgRect = text.GetComponent<RectTransform>();
-        bgRect.anchorMin = new Vector2(0, 1);
-        bgRect.anchorMax = new Vector2(0, 1);
-        bgRect.localPosition = new Vector3(0, 0, 0);
-        bgRect.sizeDelta = new Vector2(Screen.currentResolution.width, Screen.currentResolution.height);
-
-        //Attach Toggle Component to the Toggle
-        Toggle toggleComponent = toggle.AddComponent<Toggle>();
-        toggleComponent.transition = Selectable.Transition.ColorTint;
-        toggleComponent.targetGraphic = bgImage;
-        toggleComponent.isOn = true;
-        toggleComponent.toggleTransition = Toggle.ToggleTransition.Fade;
-        toggleComponent.graphic = checkMarkImage;
-
-        return toggle;
     }
 
     /// <summary>
@@ -245,15 +145,15 @@ internal static class FreecamUI
     /// <param name="bgColor">The background color of your panel. Defaults to dark grey if null.</param>
     /// <param name="contentHolder">The GameObject which you should add your actual content on to.</param>
     /// <returns>The base panel GameObject (not for adding content to).</returns>
-    public static GameObject CreatePanel(string name, GameObject parent, out GameObject contentHolder, Color? bgColor = null)
+    public static GameObject CreatePanel(string name, GameObject parent, Vector2 SizeRel, Vector2 position, out GameObject contentHolder, Color? bgColor = null)
     {
         GameObject panelObj = CreateUIObject(name, parent);
-        SetLayoutGroup<VerticalLayoutGroup>(panelObj, true, true, 0, 1, 1, 1, 1);
+        SetLayoutGroup<VerticalLayoutGroup>(panelObj, true, true, 0, 1, 1, 1, 1, TextAnchor.UpperLeft);
 
         RectTransform rect = panelObj.GetComponent<RectTransform>();
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.anchoredPosition = Vector2.zero;
+        rect.anchorMin = new(0, 0);
+        rect.anchorMax = new(SizeRel.x, SizeRel.y);
+        rect.anchoredPosition = position;
         rect.sizeDelta = Vector2.zero;
 
         panelObj.AddComponent<Image>().color = Color.black;
@@ -280,7 +180,7 @@ internal static class FreecamUI
     {
         GameObject groupObj = CreateUIObject(name, parent);
 
-        SetLayoutGroup<VerticalLayoutGroup>(groupObj, forceWidth, forceHeight, spacing, (int)padding.x,
+        SetLayoutGroup<HorizontalLayoutGroup>(groupObj, forceWidth, forceHeight, spacing, (int)padding.x,
             (int)padding.y, (int)padding.z, (int)padding.w, childAlignment);
 
         Image image = groupObj.AddComponent<Image>();
@@ -349,7 +249,7 @@ internal static class FreecamUI
     public static Text CreateLabel(GameObject parent, string name, string defaultText, TextAnchor alignment = TextAnchor.MiddleLeft,
         Color color = default, bool supportRichText = true, int fontSize = 14)
     {
-        GameObject obj = CreateUIObject(name, parent);
+        GameObject obj = CreateUIObject(name, parent, new(0.8f, 1f));
         Text textComp = obj.AddComponent<Text>();
 
         SetDefaultTextValues(textComp);
@@ -359,6 +259,7 @@ internal static class FreecamUI
         textComp.supportRichText = supportRichText;
         textComp.alignment = alignment;
         textComp.fontSize = fontSize;
+        textComp.resizeTextForBestFit = false;
 
         return textComp;
     }
