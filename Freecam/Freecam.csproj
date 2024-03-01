@@ -13,6 +13,10 @@
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Assembly-CSharp.dll</HintPath>
 	    <Private>False</Private>
 	  </Reference>
+	  <Reference Include="HPUI">
+	    <HintPath>..\..\HPUI\bin\Release\net6.0\HPUI.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
 	  <Reference Include="Il2CppCinemachine">
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppCinemachine.dll</HintPath>
 	    <Private>False</Private>

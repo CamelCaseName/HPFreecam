@@ -1,4 +1,5 @@
-﻿using Il2CppCinemachine;
+﻿using HPUI;
+using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppSystem;
 using MelonLoader;
@@ -104,40 +105,40 @@ internal class FFreecam
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         CanvasGO.AddComponent<GraphicRaycaster>();
 
-        _ = FreecamUI.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.3f), new(0, Screen.height * 0.7f), out var contentHolder);
-        text = FreecamUI.CreateLabel(contentHolder, "Freecam info text", "");
+        _ = UIBuilder.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.3f), new(0, Screen.height * 0.7f), out var contentHolder);
+        text = UIBuilder.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
         if (camera is null) return;
         MelonLogger.Msg("Creating settings for the Camera");
 
-        _ = FreecamUI.CreateToggle(contentHolder, "HDR", out allowHDRComp, out _);
+        _ = UIBuilder.CreateToggle(contentHolder, "HDR", out allowHDRComp, out _);
         allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
         allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
 
-        _ = FreecamUI.CreateToggle(contentHolder, "MSAA", out allowMSAAComp, out _);
+        _ = UIBuilder.CreateToggle(contentHolder, "MSAA", out allowMSAAComp, out _);
         allowMSAAComp.SetIsOnWithoutNotify(camera!.allowMSAA);
         allowMSAAComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowMSAA = v));
 
-        var aspectGO = FreecamUI.CreateUIObject("slider container", contentHolder);
-        _ = FreecamUI.SetLayoutGroup<HorizontalLayoutGroup>(aspectGO, true, true, 0, 2, 2, 2, 2);
-        aspectComp = FreecamUI.CreateInputField(aspectGO, "Aspect", camera!.aspect.ToString()).GetComponent<InputField>();
+        var aspectGO = UIBuilder.CreateUIObject("slider container", contentHolder);
+        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(aspectGO, true, true, 0, 2, 2, 2, 2);
+        aspectComp = UIBuilder.CreateInputField(aspectGO, "Aspect", camera!.aspect.ToString()).GetComponent<InputField>();
         aspectComp.contentType = InputField.ContentType.DecimalNumber;
         aspectComp.characterValidation = InputField.CharacterValidation.Decimal;
         aspectComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.aspect = float.Parse(s)));
-        _ = FreecamUI.CreateLabel(aspectGO, "aspect name", " aspect");
+        _ = UIBuilder.CreateLabel(aspectGO, "aspect name", " aspect");
 
-        var sliderGO = FreecamUI.CreateUIObject("fov container", contentHolder);
-        _ = FreecamUI.SetLayoutGroup<HorizontalLayoutGroup>(sliderGO, true, true, 0, 2, 2, 2, 2);
-        fieldOfViewComp = FreecamUI.CreateInputField(sliderGO, "FOV", camera!.fieldOfView.ToString()).GetComponent<InputField>();
+        var sliderGO = UIBuilder.CreateUIObject("fov container", contentHolder);
+        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(sliderGO, true, true, 0, 2, 2, 2, 2);
+        fieldOfViewComp = UIBuilder.CreateInputField(sliderGO, "FOV", camera!.fieldOfView.ToString()).GetComponent<InputField>();
         fieldOfViewComp.contentType = InputField.ContentType.DecimalNumber;
         fieldOfViewComp.characterValidation = InputField.CharacterValidation.Decimal;
         fieldOfViewComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.fieldOfView = float.Parse(s)));
-        _ = FreecamUI.CreateLabel(sliderGO, "fov name", " FOV");
+        _ = UIBuilder.CreateLabel(sliderGO, "fov name", " FOV");
 
         //physics settings require so much space we just spawn a new window
 
-        _ = FreecamUI.CreateToggle(contentHolder, "usePhysicalProperties", out usePhysicalPropertiesComp, out _);
+        _ = UIBuilder.CreateToggle(contentHolder, "usePhysicalProperties", out usePhysicalPropertiesComp, out _);
         usePhysicalPropertiesComp.SetIsOnWithoutNotify(camera!.usePhysicalProperties);
         usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.usePhysicalProperties = v));
         usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => TogglePhysicalPropertiesView(v)));
