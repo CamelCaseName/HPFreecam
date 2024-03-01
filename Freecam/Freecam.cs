@@ -61,14 +61,18 @@ public class Freecam : MelonMod
         {
             var context = new AssemblyLoadContext(name, false);
             MelonLogger.Warning($"Loaded {args.Name} from our embedded resources, saving to userlibs for next time");
-            string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", "HPUI.dll");
-            File.WriteAllBytes(path, Properties.Resources.HPUI);
-            return context.LoadFromStream(str);
+            string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", args.Name[..args.Name.IndexOf(',')] + ".dll");
+            foreach (var field in typeof(Properties.Resources).GetProperties(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic))
+            {
+                if (field.Name == args.Name[..args.Name.IndexOf(',')])
+                {
+                    File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
+
+                    return context.LoadFromStream(str);
+                }
+            }
         }
-        else
-        {
-            return null!;
-        }
+        return null!;
     }
     private static void SetOurResolveHandlerAtFront()
     {
