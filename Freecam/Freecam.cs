@@ -3,7 +3,10 @@ using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppSystem;
 using MelonLoader;
+using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Loader;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -14,6 +17,11 @@ namespace Freecam;
 public class Freecam : MelonMod
 {
     private FFreecam? freecam;
+
+    static Freecam()
+    {
+        SetOurResolveHandlerAtFront();
+    }
 
     public override void OnGUI()
     {
@@ -42,6 +50,62 @@ public class Freecam : MelonMod
 
         }
 #endif
+    }
+    private static Assembly AssemblyResolveEventListener(object sender, System.ResolveEventArgs args)
+    {
+        if (args is null) return null!;
+
+        var name = "Freecam.Resources." + args.Name[..args.Name.IndexOf(',')] + ".dll";
+        using Stream? str = Assembly.GetExecutingAssembly().GetManifestResourceStream(name);
+        if (str is not null)
+        {
+            var context = new AssemblyLoadContext(name, false);
+            MelonLogger.Warning($"Loaded {args.Name} from our embedded resources, saving to userlibs for next time");
+            string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", "HPUI.dll");
+            File.WriteAllBytes(path, Properties.Resources.HPUI);
+            return context.LoadFromStream(str);
+        }
+        else
+        {
+            return null!;
+        }
+    }
+    private static void SetOurResolveHandlerAtFront()
+    {
+        BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
+        FieldInfo? field = null;
+
+        System.Type domainType = typeof(AssemblyLoadContext);
+
+        while (field is null)
+        {
+            if (domainType is not null)
+            {
+                field = domainType.GetField("AssemblyResolve", flags);
+            }
+            else
+            {
+                MelonLogger.Error("domainType got set to null for the AssemblyResolve event was null");
+                return;
+            }
+            if (field is null)
+                domainType = domainType.BaseType!;
+        }
+
+        System.MulticastDelegate resolveDelegate = (System.MulticastDelegate)field.GetValue(null)!;
+        System.Delegate[] subscribers = resolveDelegate.GetInvocationList();
+
+        System.Delegate currentDelegate = resolveDelegate;
+        for (int i = 0; i < subscribers.Length; i++)
+            currentDelegate = System.Delegate.RemoveAll(currentDelegate, subscribers[i])!;
+
+        System.Delegate[] newSubscriptions = new System.Delegate[subscribers.Length + 1];
+        newSubscriptions[0] = (System.ResolveEventHandler)AssemblyResolveEventListener!;
+        System.Array.Copy(subscribers, 0, newSubscriptions, 1, subscribers.Length);
+
+        currentDelegate = System.Delegate.Combine(newSubscriptions)!;
+
+        field.SetValue(null, currentDelegate);
     }
 }
 
