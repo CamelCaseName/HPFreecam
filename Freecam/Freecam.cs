@@ -3,6 +3,7 @@ using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppSystem;
 using MelonLoader;
+using System.Data.SqlTypes;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -137,15 +138,13 @@ internal class FFreecam
     private float speed = defaultSpeed;
     private PlayerCharacter? player = null;
     private readonly bool inGameMain = false;
-    private readonly Canvas canvas;
+    private readonly Canvas? canvas;
     private readonly float rotRes = 0.15f;
-    private readonly GameObject CanvasGO = new();
-    private readonly Toggle allowHDRComp;
-    private readonly Toggle allowMSAAComp;
-    private readonly Toggle usePhysicalPropertiesComp;
-    private readonly InputField aspectComp;
-    private readonly InputField fieldOfViewComp;
-    private readonly Text text;
+    private readonly GameObject? CanvasGO = new();
+    private readonly Toggle? usePhysicalPropertiesComp;
+    private readonly Text? text;
+    private readonly GameObject? physicalStuff;
+    private readonly GameObject? UIRoot;
     private DateTime lastImmobilizedPlayer;
 
     public FFreecam(string sceneName)
@@ -161,6 +160,7 @@ internal class FFreecam
         }
         inGameMain = sceneName == "GameMain";
 
+        if (camera is null) return;
         // Canvas
         CanvasGO = new()
         {
@@ -173,64 +173,59 @@ internal class FFreecam
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         CanvasGO.AddComponent<GraphicRaycaster>();
 
-        _ = UIBuilder.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.3f), new(0, Screen.height * 0.7f), out var contentHolder);
+        UIRoot = UIBuilder.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.25f), new(0, Screen.height * 0.75f), out var contentHolder);
         text = UIBuilder.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
-        if (camera is null) return;
         MelonLogger.Msg("Creating settings for the Camera");
 
-        _ = UIBuilder.CreateToggle(contentHolder, "HDR", out allowHDRComp, out _);
-        allowHDRComp.SetIsOnWithoutNotify(camera!.allowHDR);
-        allowHDRComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowHDR = v));
-
-        _ = UIBuilder.CreateToggle(contentHolder, "MSAA", out allowMSAAComp, out _);
-        allowMSAAComp.SetIsOnWithoutNotify(camera!.allowMSAA);
-        allowMSAAComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.allowMSAA = v));
-
-        var aspectGO = UIBuilder.CreateUIObject("slider container", contentHolder);
-        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(aspectGO, true, true, 0, 2, 2, 2, 2);
-        aspectComp = UIBuilder.CreateInputField(aspectGO, "Aspect", camera!.aspect.ToString()).GetComponent<InputField>();
-        aspectComp.contentType = InputField.ContentType.DecimalNumber;
-        aspectComp.characterValidation = InputField.CharacterValidation.Decimal;
-        aspectComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.aspect = float.Parse(s)));
-        _ = UIBuilder.CreateLabel(aspectGO, "aspect name", " aspect");
-
-        var sliderGO = UIBuilder.CreateUIObject("fov container", contentHolder);
-        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(sliderGO, true, true, 0, 2, 2, 2, 2);
-        fieldOfViewComp = UIBuilder.CreateInputField(sliderGO, "FOV", camera!.fieldOfView.ToString()).GetComponent<InputField>();
-        fieldOfViewComp.contentType = InputField.ContentType.DecimalNumber;
-        fieldOfViewComp.characterValidation = InputField.CharacterValidation.Decimal;
-        fieldOfViewComp.onSubmit.AddListener(new System.Action<string>((string s) => camera!.fieldOfView = float.Parse(s)));
-        _ = UIBuilder.CreateLabel(sliderGO, "fov name", " FOV");
+        UIBuilder.CreateInputField(nameof(camera.allowHDR), contentHolder, camera);
+        UIBuilder.CreateInputField(nameof(camera.allowMSAA), contentHolder, camera);
+        UIBuilder.CreateInputField(nameof(camera.aspect), contentHolder, camera);
+        UIBuilder.CreateInputField(nameof(camera.fieldOfView), contentHolder, camera);
 
         //physics settings require so much space we just spawn a new window
 
         _ = UIBuilder.CreateToggle(contentHolder, "usePhysicalProperties", out usePhysicalPropertiesComp, out _);
         usePhysicalPropertiesComp.SetIsOnWithoutNotify(camera!.usePhysicalProperties);
         usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => camera!.usePhysicalProperties = v));
-        usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) => TogglePhysicalPropertiesView(v)));
+        usePhysicalPropertiesComp.onValueChanged.AddListener(new System.Action<bool>((bool v) =>
+        {
+            _ = physicalStuff is not null && (physicalStuff.active = v);
+            if (v)
+            {
+                UIRoot.GetComponent<RectTransform>().anchorMin = Vector2.zero;
+                UIRoot.GetComponent<RectTransform>().anchorMax = new(0.2f, 0.7f);
+                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * 0.1f, Screen.height * 0.65f);
+                //UIRoot.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
+            }
+            else
+            {
+                UIRoot.GetComponent<RectTransform>().anchorMin = Vector2.zero;
+                UIRoot.GetComponent<RectTransform>().anchorMax = new(0.2f, 0.25f);
+                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * 0.1f, Screen.height * 0.875f);
+                //UIRoot.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
+            }
+        }));
 
-        /*
-         * anamorphism
-         * apurture
-         * barrelClipping
-         * bladeCount
-         * curvature
-         * focalLength
-         * focusDistance
-         * iso
-         * lensShift
-         * orthographic
-         * sensorSize
-         * shutterSpeed
-         */
+        physicalStuff = UIBuilder.CreateUIObject("physical container", contentHolder);
+        physicalStuff.active = false;
+        _ = UIBuilder.SetLayoutGroup<VerticalLayoutGroup>(physicalStuff, true, true, 0, 2, 2, 2, 2);
+
+        UIBuilder.CreateInputField(nameof(camera.anamorphism), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.aperture), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.barrelClipping), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.bladeCount), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.curvature), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.focalLength), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.focusDistance), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.iso), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.lensShift), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.orthographic), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.sensorSize), physicalStuff, camera);
+        UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
     }
 
-    public void TogglePhysicalPropertiesView(bool visible)
-    {
-
-    }
 
     public bool Enabled => isEnabled;
 
@@ -418,6 +413,7 @@ internal class FFreecam
     private void DisplayUI()
     {
         string toDisplay = string.Empty;
+        if (CanvasGO is null || canvas is null || text is null) return;
         if (showUI && camera is not null && game_camera is not null)
         {
             CanvasGO.active = true;
