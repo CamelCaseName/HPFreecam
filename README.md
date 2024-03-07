@@ -4,7 +4,7 @@
 
 Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
 
-## QuickStart MelonLoader (with custom patch)
+## QuickStart MelonLoader
 
 Make sure you have installed the game and at least started the game once before you continue.
 
