@@ -61,6 +61,10 @@
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Unity.InputSystem.dll</HintPath>
 	    <Private>False</Private>
 	  </Reference>
+	  <Reference Include="UnityEngine.AudioModule">
+	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.AudioModule.dll</HintPath>
+	    <Private>False</Private>
+	  </Reference>
 	  <Reference Include="UnityEngine.CoreModule">
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\UnityEngine.CoreModule.dll</HintPath>
 	    <Private>False</Private>

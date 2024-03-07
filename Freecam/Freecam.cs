@@ -62,7 +62,7 @@ public class Freecam : MelonMod
             var context = new AssemblyLoadContext(name, false);
             MelonLogger.Warning($"Loaded {args.Name} from our embedded resources, saving to userlibs for next time");
             string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", args.Name[..args.Name.IndexOf(',')] + ".dll");
-            foreach (var field in typeof(Properties.Resources).GetProperties(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic))
+            foreach (var field in typeof(Properties.Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
             {
                 if (field.Name == args.Name[..args.Name.IndexOf(',')])
                 {
@@ -493,6 +493,8 @@ internal class FFreecam
             }
 
             Object.DestroyImmediate(camera.gameObject.GetComponent<CinemachineBrain>());
+            //todo maybe add setting?
+            Object.DestroyImmediate(camera.gameObject.GetComponent<AudioListener>());
 
             isInitialized = camera.gameObject.GetComponents<MonoBehaviour>().Count > 0;
             //ObjectInfo.PrintHierarchy(camera.gameObject);
