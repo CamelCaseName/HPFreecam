@@ -4,7 +4,7 @@
 
 Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
 
-## QuickStart MelonLoader (with custom patch)
+## QuickStart MelonLoader
 
 Make sure you have installed the game and at least started the game once before you continue.
 
@@ -15,10 +15,7 @@ Make sure you have installed the game and at least started the game once before 
 4. Select and HouseParty.exe from where the game is installed.
 5. Select the latest Version of MelonLoader.
 6. Click the INSTALL or RE-INSTALL button.
-9. Place the Freecam.dll into the Mods folder.
-
-After this the installation directory of the game should contain a new folder called `Mods`.
-Then Move the downloaded `.dll` into this folder and start the game.
+7. Place the Freecam.dll into the Mods folder.
 
 Refer to [this document here](https://github.com/0x78f1935/HPMods) for further info on modding House Party.
 
@@ -32,10 +29,14 @@ Refer to [this document here](https://github.com/0x78f1935/HPMods) for further i
 |                        | So in Menus you can select stuff, in game you can walk around freely. |
 | ALT + V                | teleports the freecam to the player's head when possible.             |
 | ALT + H                | hides the games own camera                                            |
+| ALT + U                | toggles the ui                                                        |
 | W, A, S, D, Ctrl, Space| forward, left, back, right, down, up                                  |
 
 # Impressions
-
+![ui in main menu](https://github.com/CamelCaseName/HPFreecam/assets/48067449/01a83c48-b8da-4f56-b64f-4d4be83418ef)
+![orthographic view](https://github.com/CamelCaseName/HPFreecam/assets/48067449/82de91f9-e369-4113-9809-ee7c183cde79)
+![player and characters in hallway](https://github.com/CamelCaseName/HPFreecam/assets/48067449/c3259a49-9d4c-467f-98d3-37545566ba5a)
+![player protrait with UI](https://github.com/CamelCaseName/HPFreecam/assets/48067449/75ff6f70-304a-4a0c-94e0-e2a849e50eb9)
 ![Freecam in main menu](https://user-images.githubusercontent.com/48067449/163736511-a13cad20-1213-4a7e-8c57-a289b1f9e7ca.png)
 ![Freecam in main menu with cursor available](https://user-images.githubusercontent.com/48067449/163736514-d95bc351-0271-4787-894b-e2eaccfdb407.png)
 ![Freecam in game, player apartment](https://user-images.githubusercontent.com/48067449/163736541-4ada6d53-a65a-4d78-9236-26e0946ba85c.png)
