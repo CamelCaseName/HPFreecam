@@ -147,6 +147,8 @@ internal class FFreecam
     private readonly GameObject? UIRoot;
     private DateTime lastImmobilizedPlayer;
 
+    //todo add over the shoulder cam mode
+
     public FFreecam(string sceneName)
     {
         foreach (var item in Object.FindObjectsOfType<Camera>())
