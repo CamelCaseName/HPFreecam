@@ -1,6 +1,8 @@
 ﻿using HPUI;
+using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
+using Il2CppInterop.Runtime.Startup;
 using Il2CppSystem;
 using MelonLoader;
 using System.Data.SqlTypes;
@@ -227,7 +229,6 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.sensorSize), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
     }
-
 
     public bool Enabled => isEnabled;
 
@@ -497,6 +498,55 @@ internal class FFreecam
             isInitialized = camera.gameObject.GetComponents<MonoBehaviour>().Count > 0;
             //ObjectInfo.PrintHierarchy(camera.gameObject);
             //MelonLogger.Msg("our own camera was initialized");
+
+            //todo explore more
+            //idea: get the actions once, then check their state each update, like we used to do with the keyboards. this will allow us to use controllers as well though. activating with ?
+
+            MelonLogger.Msg("Actions");
+            foreach (var item in PlayerControlManager.Singleton._playerMap.actions)
+            {
+                MelonLogger.Msg($"  {item.name} {item.type}");
+                MelonLogger.Msg("  Controls");
+                foreach (var ctl in item.controls)
+                {
+                    MelonLogger.Msg($"    {ctl.m_Name} {ctl.displayName}");
+                }
+                MelonLogger.Msg("  Bindings");
+                foreach (var ctl in item.bindings)
+                {
+                    MelonLogger.Msg($"    {ctl.interactions} {ctl.processors} {ctl.name}");
+                }
+                MelonLogger.Msg("  Processors");
+                MelonLogger.Msg("    " + item.processors);
+            }
+
+            MelonLogger.Msg("Bindings");
+            foreach (var item in PlayerControlManager.Singleton._playerMap.bindings)
+            {
+                MelonLogger.Msg("  " + item.groups);
+                MelonLogger.Msg("  " + item.action);
+                MelonLogger.Msg("  " + item.interactions);
+                MelonLogger.Msg("  " + item.name);
+            }
+            MelonLogger.Msg("Control Schemes");
+            foreach (var item in PlayerControlManager.Singleton._playerMap.controlSchemes)
+            {
+                MelonLogger.Msg("  " + item.bindingGroup);
+                MelonLogger.Msg("  " + item.name);
+                MelonLogger.Msg("  Device Requirements");
+                foreach (var ctl in item.deviceRequirements)
+                {
+                    MelonLogger.Msg($"    {ctl.controlPath} {ctl.isOptional} {ctl.isAND} {ctl.isOR}");
+                }
+
+            }
+            MelonLogger.Msg("Devices");
+            foreach (var item in PlayerControlManager.Singleton._playerMap.devices.Value)
+            {
+                MelonLogger.Msg("  " + item.name);
+                MelonLogger.Msg("  " + item.displayName);
+                MelonLogger.Msg("  " + item.layout);
+            }
             return true;
         }
         return false;
