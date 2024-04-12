@@ -1,11 +1,7 @@
 ﻿using HPUI;
-using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
-using Il2CppInterop.Runtime.Startup;
-using Il2CppSystem;
 using MelonLoader;
-using System.Data.SqlTypes;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -13,6 +9,7 @@ using System.Runtime.Loader;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using DateTime = System.DateTime;
 using Object = UnityEngine.Object;
 
 namespace Freecam;
@@ -118,7 +115,6 @@ public class Freecam : MelonMod
 
 //yoink this class if you need a freecam
 //or just use the mod alongside yours 
-//TODO add UI with coord view, and layer selector
 //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
 internal class FFreecam
 {
@@ -181,12 +177,14 @@ internal class FFreecam
         text = UIBuilder.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
-        MelonLogger.Msg("Creating settings for the Camera");
+        MelonLogger.Msg("Creating settings for the Camera...");
 
         UIBuilder.CreateInputField(nameof(camera.allowHDR), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.allowMSAA), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.aspect), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.fieldOfView), contentHolder, camera);
+        CreateLayerDropDown(contentHolder, camera.gameObject);
+        CreateLayerMaskDropDown(nameof(camera.cullingMask), contentHolder, camera, typeof(Camera).GetProperty(nameof(camera.cullingMask))!);
 
         //physics settings require so much space we just spawn a new window
 
@@ -228,7 +226,146 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.orthographic), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.sensorSize), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
+        MelonLogger.Msg("...Done");
     }
+
+    //todo rects are not fine yet
+    private static void CreateLayerDropDown(GameObject parent, GameObject obj)
+    {
+        var propertyGO = UIBuilder.CreateUIObject(obj.name + " layer container", parent);
+        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, padTop: 2, padLeft: 2, padRight: 2, padBottom: 2);
+
+        Dropdown dropDown = null!;
+        _ = UIBuilder.CreateDropdown(propertyGO, obj.name + " layer dropDown", out dropDown, "Default       ", 14, (int index) =>
+        {
+            obj.layer = index;
+        });
+
+        for (int i = 0; i < 32; i++)
+        {
+            dropDown.options.Add(new(LayerMask.LayerToName(i)));
+        }
+
+        dropDown.value = obj.layer;
+
+        _ = UIBuilder.CreateLabel(propertyGO, obj.name + " layer name", obj.name + " layer");
+        dropDown.RefreshShownValue();
+    }
+
+    private static void CreateLayerMaskDropDown(string propertyName, GameObject parent, Object obj, PropertyInfo property)
+    {
+
+        var propertyGO = UIBuilder.CreateUIObject(propertyName + " container", parent);
+        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, padTop: 2, padLeft: 2, padRight: 2, padBottom: 2);
+
+        Dropdown dropDown = null!;
+        Toggle toggle = null!;
+        _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, "Default        ", 14, (int index) =>
+        {
+            int mask = (int)property.GetValue(obj, null)!;
+
+            toggle.SetIsOnWithoutNotify((mask & (1 << index)) > 0);
+        });
+
+        for (int i = 0; i < 32; i++)
+        {
+            dropDown.options.Add(new(LayerMask.LayerToName(i)));
+        }
+
+        dropDown.value = 0;
+
+        _ = UIBuilder.CreateLabel(propertyGO, propertyName + " name", propertyName);
+
+        _ = UIBuilder.CreateToggle(propertyGO, "enabled", out toggle, out _);
+
+        toggle.onValueChanged.AddListener(new System.Action<bool>((bool b) =>
+        {
+            int mask = (int)property.GetValue(obj, null)!;
+            if (b)
+            {
+                property.SetValue(obj, mask | (1 << dropDown.value));
+            }
+            else
+            {
+                property.SetValue(obj, mask & ~(1 << dropDown.value));
+            }
+        }));
+
+        dropDown.RefreshShownValue();
+    }
+
+    //private static void CreateLEnumDropDown(string propertyName, GameObject parent, object obj, PropertyInfo property)
+    //{
+    //    if (property.PropertyType.IsEnum)
+    //    {
+    //        //change how it works between flag enums and normal enums, normal enum we just make a dropdown but for the other one we can go though all and then set the checkbox next to it
+    //        var propertyGO = UIBuilder.CreateUIObject(propertyName + " container", parent);
+    //        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, 0, 2, 2, 2, 2);
+    //        _ = UIBuilder.CreateLabel(propertyGO, propertyName + " name", propertyName);
+
+    //        MelonLogger.Msg("1");
+    //        if (property.PropertyType.IsDefined(typeof(FlagsAttribute), false))
+    //        {
+    //            MelonLogger.Msg("1");
+    //            Dropdown dropDown = null!;
+    //            _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, propertyName, 14, (int index) =>
+    //            {
+    //                MelonLogger.Msg(index);
+    //                MelonLogger.Msg(dropDown.options[index].text);
+    //                if (Enum.TryParse(property.PropertyType, dropDown.options[index].text, out var enumValue))
+    //                    property.SetValue(obj, enumValue);
+    //            });
+
+    //            MelonLogger.Msg("2");
+    //            int i = 0;
+    //            int indexToSelect = 0;
+    //            string currentSelectedValue = property.GetValue(obj, null)!.ToString()!;
+    //            foreach (var name in Enum.GetNames(property.PropertyType))
+    //            {
+    //                MelonLogger.Msg(name);
+    //                if (name == currentSelectedValue)
+    //                    indexToSelect = i;
+    //                dropDown.options.Add(new(name));
+    //                ++i;
+    //            }
+
+    //            dropDown.value = indexToSelect;
+
+    //            MelonLogger.Msg("3");
+    //            dropDown.RefreshShownValue();
+    //        }
+    //        else
+    //        {
+    //            MelonLogger.Msg("4");
+    //            Dropdown dropDown = null!;
+    //            _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, propertyName, 14, (int index) =>
+    //            {
+    //                MelonLogger.Msg(index);
+    //                MelonLogger.Msg(dropDown.options[index].text);
+    //                if (Enum.TryParse(property.PropertyType, dropDown.options[index].text, out var enumValue))
+    //                    property.SetValue(obj, enumValue);
+    //            });
+
+    //            MelonLogger.Msg("5");
+    //            int i = 0;
+    //            int indexToSelect = 0;
+    //            string currentSelectedValue = property.GetValue(obj, null)!.ToString()!;
+    //            foreach (var name in Enum.GetNames(property.PropertyType))
+    //            {
+    //                MelonLogger.Msg(name);
+    //                if (name == currentSelectedValue)
+    //                    indexToSelect = i;
+    //                dropDown.options.Add(new(name));
+    //                ++i;
+    //            }
+
+    //            dropDown.value = indexToSelect;
+
+    //            MelonLogger.Msg("6");
+    //            dropDown.RefreshShownValue();
+    //        }
+    //    }
+    //}
 
     public bool Enabled => isEnabled;
 
@@ -329,7 +466,6 @@ internal class FFreecam
         MelonLogger.Msg("Freecam enabled.");
     }
 
-    //todo, use input system
     public void UpdateMovement()
     {
         //only move when we are not moving the player
@@ -492,61 +628,62 @@ internal class FFreecam
             }
 
             Object.DestroyImmediate(camera.gameObject.GetComponent<CinemachineBrain>());
-            //todo maybe add setting?
             Object.DestroyImmediate(camera.gameObject.GetComponent<AudioListener>());
 
             isInitialized = camera.gameObject.GetComponents<MonoBehaviour>().Count > 0;
             //ObjectInfo.PrintHierarchy(camera.gameObject);
             //MelonLogger.Msg("our own camera was initialized");
 
-            //todo explore more
+            //todo, use input system
             //idea: get the actions once, then check their state each update, like we used to do with the keyboards. this will allow us to use controllers as well though. activating with ?
 
-            MelonLogger.Msg("Actions");
-            foreach (var item in PlayerControlManager.Singleton._playerMap.actions)
-            {
-                MelonLogger.Msg($"  {item.name} {item.type}");
-                MelonLogger.Msg("  Controls");
-                foreach (var ctl in item.controls)
-                {
-                    MelonLogger.Msg($"    {ctl.m_Name} {ctl.displayName}");
-                }
-                MelonLogger.Msg("  Bindings");
-                foreach (var ctl in item.bindings)
-                {
-                    MelonLogger.Msg($"    {ctl.interactions} {ctl.processors} {ctl.name}");
-                }
-                MelonLogger.Msg("  Processors");
-                MelonLogger.Msg("    " + item.processors);
-            }
+            //PlayerControlManager.add_OnInput_Crouch(new System.Action(() => { }));
 
-            MelonLogger.Msg("Bindings");
-            foreach (var item in PlayerControlManager.Singleton._playerMap.bindings)
-            {
-                MelonLogger.Msg("  " + item.groups);
-                MelonLogger.Msg("  " + item.action);
-                MelonLogger.Msg("  " + item.interactions);
-                MelonLogger.Msg("  " + item.name);
-            }
-            MelonLogger.Msg("Control Schemes");
-            foreach (var item in PlayerControlManager.Singleton._playerMap.controlSchemes)
-            {
-                MelonLogger.Msg("  " + item.bindingGroup);
-                MelonLogger.Msg("  " + item.name);
-                MelonLogger.Msg("  Device Requirements");
-                foreach (var ctl in item.deviceRequirements)
-                {
-                    MelonLogger.Msg($"    {ctl.controlPath} {ctl.isOptional} {ctl.isAND} {ctl.isOR}");
-                }
+            //MelonLogger.Msg("Actions");
+            //foreach (var item in PlayerControlManager.Singleton._playerMap.actions)
+            //{
+            //    MelonLogger.Msg($"  {item.name} {item.type}");
+            //    MelonLogger.Msg("  Controls");
+            //    foreach (var ctl in item.controls)
+            //    {
+            //        MelonLogger.Msg($"    {ctl.m_Name} {ctl.displayName}");
+            //    }
+            //    MelonLogger.Msg("  Bindings");
+            //    foreach (var ctl in item.bindings)
+            //    {
+            //        MelonLogger.Msg($"    {ctl.interactions} {ctl.processors} {ctl.name}");
+            //    }
+            //    MelonLogger.Msg("  Processors");
+            //    MelonLogger.Msg("    " + item.processors);
+            //}
 
-            }
-            MelonLogger.Msg("Devices");
-            foreach (var item in PlayerControlManager.Singleton._playerMap.devices.Value)
-            {
-                MelonLogger.Msg("  " + item.name);
-                MelonLogger.Msg("  " + item.displayName);
-                MelonLogger.Msg("  " + item.layout);
-            }
+            //MelonLogger.Msg("Bindings");
+            //foreach (var item in PlayerControlManager.Singleton._playerMap.bindings)
+            //{
+            //    MelonLogger.Msg("  " + item.groups);
+            //    MelonLogger.Msg("  " + item.action);
+            //    MelonLogger.Msg("  " + item.interactions);
+            //    MelonLogger.Msg("  " + item.name);
+            //}
+            //MelonLogger.Msg("Control Schemes");
+            //foreach (var item in PlayerControlManager.Singleton._playerMap.controlSchemes)
+            //{
+            //    MelonLogger.Msg("  " + item.bindingGroup);
+            //    MelonLogger.Msg("  " + item.name);
+            //    MelonLogger.Msg("  Device Requirements");
+            //    foreach (var ctl in item.deviceRequirements)
+            //    {
+            //        MelonLogger.Msg($"    {ctl.controlPath} {ctl.isOptional} {ctl.isAND} {ctl.isOR}");
+            //    }
+
+            //}
+            //MelonLogger.Msg("Devices");
+            //foreach (var item in PlayerControlManager.Singleton._playerMap.devices.Value)
+            //{
+            //    MelonLogger.Msg("  " + item.name);
+            //    MelonLogger.Msg("  " + item.displayName);
+            //    MelonLogger.Msg("  " + item.layout);
+            //}
             return true;
         }
         return false;
@@ -572,7 +709,7 @@ internal class FFreecam
                     TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
-                else if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Seconds > 3)
+                else if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Milliseconds > 300)
                 {
                     TryImmobilizePlayer();
                     lastImmobilizedPlayer = DateTime.Now;
