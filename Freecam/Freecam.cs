@@ -1,6 +1,7 @@
 ﻿using HPUI;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
+using Il2CppEekCharacterEngine.Support;
 using MelonLoader;
 using System.IO;
 using System.Reflection;
@@ -123,6 +124,7 @@ internal class FFreecam
     private bool inCamera = true;
     private bool isEnabled = false;
     private bool isInitialized = false;
+    private bool isThirdPerson = false;
 #if DEBUG
     private bool showUI = true;
 #else
@@ -131,13 +133,15 @@ internal class FFreecam
     private Camera? camera = null;
     private Camera? game_camera = null;
     private const float defaultSpeed = 2.3f;
+    private const float rotRes = 0.15f;
+    private const float ThirdPersonDistance = 2.0f;
+    private readonly int PhysicsLayerMask;
     private float rotX = 0f;
     private float rotY = 0f;
     private float speed = defaultSpeed;
     private PlayerCharacter? player = null;
     private readonly bool inGameMain = false;
     private readonly Canvas? canvas;
-    private readonly float rotRes = 0.15f;
     private readonly GameObject? CanvasGO = null;
     private readonly Toggle? usePhysicalPropertiesComp;
     private readonly Text? text;
@@ -147,7 +151,7 @@ internal class FFreecam
 
     private const float WindowWidth = 0.25f;
     private const float WindowHeight = 0.3f;
-    private const float WindowHeightExtended = WindowHeight + 0.4f;
+    private const float WindowHeightExtended = WindowHeight + 0.405f;
 
     //todo add over the shoulder cam mode
 
@@ -231,6 +235,8 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.sensorSize), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
         MelonLogger.Msg("...Done");
+
+        PhysicsLayerMask = LayerMask.GetMask("Default", "Ground", "InteractiveItems", "Characters", "Walls");
     }
 
     public bool Enabled => isEnabled;
@@ -278,7 +284,7 @@ internal class FFreecam
     private void TryImmobilizePlayer()
     {
         if (player is null) return;
-        if (inCamera)
+        if (inCamera && !isThirdPerson)
             player._controlManager.PlayerInput.DeactivateInput();
         else
             player._controlManager.PlayerInput.ActivateInput();
@@ -337,51 +343,89 @@ internal class FFreecam
         //only move when we are not moving the player
         if (isEnabled && inCamera && camera is not null)
         {
-            if (Keyboard.current.leftShiftKey.isPressed)
-                speed = defaultSpeed * 2.5f;
-            else
-                speed = defaultSpeed;
-
-            float dTime = Time.deltaTime;
-
-            //game_camera?.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
-
-            if (Keyboard.current.wKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
-            }
-            else if (Keyboard.current.sKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.back * speed * dTime, Space.Self); ;
-            }
-
-            if (Keyboard.current.aKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.left * speed * dTime, Space.Self);
-            }
-            else if (Keyboard.current.dKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.right * speed * dTime, Space.Self);
-            }
-
-            if (Keyboard.current.spaceKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.up * speed * dTime, Space.Self);
-            }
-            else if (Keyboard.current.leftCtrlKey.isPressed)
-            {
-                camera.transform.Translate(Vector3.down * speed * dTime, Space.Self);
-            }
 
             var value = Mouse.current.delta.ReadValue();
-            rotY += value.x;
-            rotX -= value.y;
 
-            camera.transform.get_rotation_Injected(out var oldRotation);
-            var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
-            GCHandle pinnedRotation = GCHandle.Alloc(newRotation, GCHandleType.Pinned);
-            camera.transform.set_rotation_Injected(ref newRotation);
-            pinnedRotation.Free();
+            if (!isThirdPerson)
+            {
+                if (Keyboard.current.leftShiftKey.isPressed)
+                    speed = defaultSpeed * 2.5f;
+                else
+                    speed = defaultSpeed;
+
+                float dTime = Time.deltaTime;
+
+                //game_camera?.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
+
+                if (Keyboard.current.wKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.forward * speed * dTime, Space.Self);
+                }
+                else if (Keyboard.current.sKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.back * speed * dTime, Space.Self); ;
+                }
+
+                if (Keyboard.current.aKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.left * speed * dTime, Space.Self);
+                }
+                else if (Keyboard.current.dKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.right * speed * dTime, Space.Self);
+                }
+
+                if (Keyboard.current.spaceKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.up * speed * dTime, Space.Self);
+                }
+                else if (Keyboard.current.leftCtrlKey.isPressed)
+                {
+                    camera.transform.Translate(Vector3.down * speed * dTime, Space.Self);
+                }
+
+                camera.transform.get_rotation_Injected(out var oldRotation);
+                rotY += value.x;
+                rotX -= value.y;
+                var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
+                GCHandle pinnedRotation = GCHandle.Alloc(newRotation, GCHandleType.Pinned);
+                camera.transform.set_rotation_Injected(ref newRotation);
+                pinnedRotation.Free();
+            }
+            else if (game_camera is not null && isThirdPerson)
+            {
+                game_camera.transform.get_position_Injected(out var playerPos);
+                var potentiallyNewPos = playerPos - ThirdPersonDistance * game_camera.transform.forward + ThirdPersonDistance / 4 * game_camera.transform.right;
+                //check for collision, move freecam pos there
+                var hit = Physics.Raycast(playerPos, potentiallyNewPos - playerPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
+                if (!hit)
+                    playerPos = potentiallyNewPos;
+                else
+                {
+                    playerPos = info.point + (ThirdPersonDistance - info.distance + 0.02f) * game_camera.transform.forward;
+                }
+                GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
+                camera.transform.set_position_Injected(ref playerPos);
+                pinnedPos.Free();
+
+                game_camera.transform.get_rotation_Injected(out var playerRot);
+                if (Physics.Raycast(game_camera.transform.position, game_camera.transform.forward, out info, 3.0f, PhysicsLayerMask))
+                {
+                    playerRot = Quaternion.LookRotation(game_camera.transform.position - info.point, Vector3.up);
+                    //todo investigate here!
+                    //todo investigate here!
+                    GCHandle pinnedRot = GCHandle.Alloc(playerRot, GCHandleType.Pinned);
+                    camera.transform.set_rotation_Injected(ref playerRot);
+                    pinnedRot.Free();
+                    //camera.transform.Rotate(new Vector3(0, 180, 0));
+                }
+                else
+                {
+                    GCHandle pinnedRot = GCHandle.Alloc(playerRot, GCHandleType.Pinned);
+                    camera.transform.set_rotation_Injected(ref playerRot);
+                    pinnedRot.Free();
+                }
+            }
 
         }
         else if (isInitialized && !isEnabled && camera is not null && player is not null)
@@ -424,8 +468,9 @@ internal class FFreecam
             CanvasGO.active = true;
             canvas.scaleFactor = 1.0f;
             string lookingAt = "None";
+            string lookingAt2 = "None";
             if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit, float.MaxValue))
-                lookingAt = $"{hit.transform.gameObject.name}";
+                lookingAt = $"{hit.transform.gameObject.name}|{LayerMask.LayerToName(hit.transform.gameObject.layer)}";
 
             if (player is null)
             {
@@ -440,13 +485,16 @@ internal class FFreecam
             }
             else
             {
+                if (Physics.Raycast(camera.transform.position, camera.transform.forward, out RaycastHit hit2, float.MaxValue))
+                    lookingAt2 = $"{hit2.transform.gameObject.name}|{LayerMask.LayerToName(hit2.transform.gameObject.layer)}";
                 toDisplay = $"Player position ({player.transform.position.x:0.00}|{player.transform.position.y:0.00}|{player.transform.position.z:0.00})\n" +
                     $" Freecam position ({camera.transform.position.x:0.00}|{camera.transform.position.y:0.00}|{camera.transform.position.z:0.00})\n" +
                     $"Player rotation ({game_camera.transform.rotation.eulerAngles.x:0.00}|{game_camera.transform.rotation.eulerAngles.y:0.00}|{game_camera.transform.rotation.eulerAngles.z:0.00})\n" +
                     $" Freecam rotation ({camera.transform.rotation.eulerAngles.x:0.00}|{camera.transform.rotation.eulerAngles.y:0.00}|{camera.transform.rotation.eulerAngles.z:0.00})\n" +
                     $"Player movement speed ({game_camera.velocity.x:0.00}|{game_camera.velocity.y:0.00}|{game_camera.velocity.z:0.00})\n" +
                     $" Freecam speed ({camera.velocity.x:0.00}|{camera.velocity.y:0.00}|{camera.velocity.z:0.00})\n" +
-                    $"Freecam looking at {lookingAt}";
+                    $"Player looking at {lookingAt}\n" +
+                    $"Freecam looking at {lookingAt2}";
             }
         }
         else
@@ -575,7 +623,7 @@ internal class FFreecam
                     TryImmobilizePlayer();
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
-                else if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Milliseconds > 300)
+                if (inCamera && (DateTime.Now - lastImmobilizedPlayer).Milliseconds > 300)
                 {
                     TryImmobilizePlayer();
                     lastImmobilizedPlayer = DateTime.Now;
@@ -591,6 +639,23 @@ internal class FFreecam
                     camera.transform.set_rotation_Injected(ref playerRot);
                     pinnedRot.Free();
                     MelonLogger.Msg("Freecam teleported to the player's head.");
+                }
+                if (Keyboard.current.tKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
+                {
+                    isThirdPerson = true;
+                    player.Head.transform.get_position_Injected(out var playerPos);
+                    playerPos -= ThirdPersonDistance * player.Head.transform.forward;
+                    GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
+                    camera.transform.set_position_Injected(ref playerPos);
+                    pinnedPos.Free();
+                    player.Head.transform.get_rotation_Injected(out var playerRot);
+                    GCHandle pinnedRot = GCHandle.Alloc(playerRot, GCHandleType.Pinned);
+                    camera.transform.set_rotation_Injected(ref playerRot);
+                    pinnedRot.Free();
+                }
+                else if (Keyboard.current.tKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && isThirdPerson)
+                {
+                    isThirdPerson = false;
                 }
             }
             else
