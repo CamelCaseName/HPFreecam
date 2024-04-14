@@ -138,12 +138,16 @@ internal class FFreecam
     private readonly bool inGameMain = false;
     private readonly Canvas? canvas;
     private readonly float rotRes = 0.15f;
-    private readonly GameObject? CanvasGO = new();
+    private readonly GameObject? CanvasGO = null;
     private readonly Toggle? usePhysicalPropertiesComp;
     private readonly Text? text;
     private readonly GameObject? physicalStuff;
     private readonly GameObject? UIRoot;
     private DateTime lastImmobilizedPlayer;
+
+    private const float WindowWidth = 0.25f;
+    private const float WindowHeight = 0.3f;
+    private const float WindowHeightExtended = WindowHeight + 0.4f;
 
     //todo add over the shoulder cam mode
 
@@ -173,7 +177,7 @@ internal class FFreecam
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         CanvasGO.AddComponent<GraphicRaycaster>();
 
-        UIRoot = UIBuilder.CreatePanel("Freecam UI Container", CanvasGO, new(0.2f, 0.25f), new(0, Screen.height * 0.75f), out var contentHolder);
+        UIRoot = UIBuilder.CreatePanel("Freecam UI Container", CanvasGO, new(WindowWidth, WindowHeight), new(0, Screen.height * (1.0f - WindowHeight)), out var contentHolder);
         text = UIBuilder.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
@@ -183,8 +187,8 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.allowMSAA), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.aspect), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.fieldOfView), contentHolder, camera);
-        CreateLayerDropDown(contentHolder, camera.gameObject);
-        CreateLayerMaskDropDown(nameof(camera.cullingMask), contentHolder, camera, typeof(Camera).GetProperty(nameof(camera.cullingMask))!);
+        UIBuilder.CreateLayerDropDown(contentHolder, camera.gameObject);
+        UIBuilder.CreateLayerMaskDropDown(nameof(camera.cullingMask), contentHolder, camera, typeof(Camera).GetProperty(nameof(camera.cullingMask))!);
 
         //physics settings require so much space we just spawn a new window
 
@@ -197,15 +201,15 @@ internal class FFreecam
             if (v)
             {
                 UIRoot.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-                UIRoot.GetComponent<RectTransform>().anchorMax = new(0.2f, 0.7f);
-                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * 0.1f, Screen.height * 0.65f);
+                UIRoot.GetComponent<RectTransform>().anchorMax = new(WindowWidth, WindowHeightExtended);
+                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * WindowWidth / 2, Screen.height * (1.0f - (WindowHeightExtended / 2)));
                 //UIRoot.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
             }
             else
             {
                 UIRoot.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-                UIRoot.GetComponent<RectTransform>().anchorMax = new(0.2f, 0.25f);
-                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * 0.1f, Screen.height * 0.875f);
+                UIRoot.GetComponent<RectTransform>().anchorMax = new(WindowWidth, WindowHeight);
+                UIRoot.GetComponent<RectTransform>().position = new(Screen.width * WindowWidth / 2, Screen.height * (1.0f - (WindowHeight / 2)));
                 //UIRoot.GetComponent<RectTransform>().sizeDelta = Vector2.zero;
             }
         }));
@@ -228,144 +232,6 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
         MelonLogger.Msg("...Done");
     }
-
-    //todo rects are not fine yet
-    private static void CreateLayerDropDown(GameObject parent, GameObject obj)
-    {
-        var propertyGO = UIBuilder.CreateUIObject(obj.name + " layer container", parent);
-        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, padTop: 2, padLeft: 2, padRight: 2, padBottom: 2);
-
-        Dropdown dropDown = null!;
-        _ = UIBuilder.CreateDropdown(propertyGO, obj.name + " layer dropDown", out dropDown, "Default       ", 14, (int index) =>
-        {
-            obj.layer = index;
-        });
-
-        for (int i = 0; i < 32; i++)
-        {
-            dropDown.options.Add(new(LayerMask.LayerToName(i)));
-        }
-
-        dropDown.value = obj.layer;
-
-        _ = UIBuilder.CreateLabel(propertyGO, obj.name + " layer name", obj.name + " layer");
-        dropDown.RefreshShownValue();
-    }
-
-    private static void CreateLayerMaskDropDown(string propertyName, GameObject parent, Object obj, PropertyInfo property)
-    {
-
-        var propertyGO = UIBuilder.CreateUIObject(propertyName + " container", parent);
-        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, padTop: 2, padLeft: 2, padRight: 2, padBottom: 2);
-
-        Dropdown dropDown = null!;
-        Toggle toggle = null!;
-        _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, "Default        ", 14, (int index) =>
-        {
-            int mask = (int)property.GetValue(obj, null)!;
-
-            toggle.SetIsOnWithoutNotify((mask & (1 << index)) > 0);
-        });
-
-        for (int i = 0; i < 32; i++)
-        {
-            dropDown.options.Add(new(LayerMask.LayerToName(i)));
-        }
-
-        dropDown.value = 0;
-
-        _ = UIBuilder.CreateLabel(propertyGO, propertyName + " name", propertyName);
-
-        _ = UIBuilder.CreateToggle(propertyGO, "enabled", out toggle, out _);
-
-        toggle.onValueChanged.AddListener(new System.Action<bool>((bool b) =>
-        {
-            int mask = (int)property.GetValue(obj, null)!;
-            if (b)
-            {
-                property.SetValue(obj, mask | (1 << dropDown.value));
-            }
-            else
-            {
-                property.SetValue(obj, mask & ~(1 << dropDown.value));
-            }
-        }));
-
-        dropDown.RefreshShownValue();
-    }
-
-    //private static void CreateLEnumDropDown(string propertyName, GameObject parent, object obj, PropertyInfo property)
-    //{
-    //    if (property.PropertyType.IsEnum)
-    //    {
-    //        //change how it works between flag enums and normal enums, normal enum we just make a dropdown but for the other one we can go though all and then set the checkbox next to it
-    //        var propertyGO = UIBuilder.CreateUIObject(propertyName + " container", parent);
-    //        _ = UIBuilder.SetLayoutGroup<HorizontalLayoutGroup>(propertyGO, true, true, 0, 2, 2, 2, 2);
-    //        _ = UIBuilder.CreateLabel(propertyGO, propertyName + " name", propertyName);
-
-    //        MelonLogger.Msg("1");
-    //        if (property.PropertyType.IsDefined(typeof(FlagsAttribute), false))
-    //        {
-    //            MelonLogger.Msg("1");
-    //            Dropdown dropDown = null!;
-    //            _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, propertyName, 14, (int index) =>
-    //            {
-    //                MelonLogger.Msg(index);
-    //                MelonLogger.Msg(dropDown.options[index].text);
-    //                if (Enum.TryParse(property.PropertyType, dropDown.options[index].text, out var enumValue))
-    //                    property.SetValue(obj, enumValue);
-    //            });
-
-    //            MelonLogger.Msg("2");
-    //            int i = 0;
-    //            int indexToSelect = 0;
-    //            string currentSelectedValue = property.GetValue(obj, null)!.ToString()!;
-    //            foreach (var name in Enum.GetNames(property.PropertyType))
-    //            {
-    //                MelonLogger.Msg(name);
-    //                if (name == currentSelectedValue)
-    //                    indexToSelect = i;
-    //                dropDown.options.Add(new(name));
-    //                ++i;
-    //            }
-
-    //            dropDown.value = indexToSelect;
-
-    //            MelonLogger.Msg("3");
-    //            dropDown.RefreshShownValue();
-    //        }
-    //        else
-    //        {
-    //            MelonLogger.Msg("4");
-    //            Dropdown dropDown = null!;
-    //            _ = UIBuilder.CreateDropdown(propertyGO, propertyName + " dropDown", out dropDown, propertyName, 14, (int index) =>
-    //            {
-    //                MelonLogger.Msg(index);
-    //                MelonLogger.Msg(dropDown.options[index].text);
-    //                if (Enum.TryParse(property.PropertyType, dropDown.options[index].text, out var enumValue))
-    //                    property.SetValue(obj, enumValue);
-    //            });
-
-    //            MelonLogger.Msg("5");
-    //            int i = 0;
-    //            int indexToSelect = 0;
-    //            string currentSelectedValue = property.GetValue(obj, null)!.ToString()!;
-    //            foreach (var name in Enum.GetNames(property.PropertyType))
-    //            {
-    //                MelonLogger.Msg(name);
-    //                if (name == currentSelectedValue)
-    //                    indexToSelect = i;
-    //                dropDown.options.Add(new(name));
-    //                ++i;
-    //            }
-
-    //            dropDown.value = indexToSelect;
-
-    //            MelonLogger.Msg("6");
-    //            dropDown.RefreshShownValue();
-    //        }
-    //    }
-    //}
 
     public bool Enabled => isEnabled;
 
