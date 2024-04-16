@@ -2,8 +2,8 @@
 using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
+using Il2CppInterop.Runtime;
 using MelonLoader;
-using System;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -121,10 +121,11 @@ public class Freecam : MelonMod
 //todo add options to add new objects, clone oibjects, move objects with UI and with camera movement (ray to next object, and fixed distance from cam)
 internal class FFreecam
 {
-    //todo add option to copy patricks camera to the freecam lol
+    //todo add option to copy patricks camera item to the freecam lol
     private bool inCamera = true;
     private bool isEnabled = false;
     private bool isInitialized = false;
+    private bool reEnable = false;
     private Camera? camera = null;
     private Camera? game_camera = null;
     private const float defaultSpeed = 2.3f;
@@ -147,10 +148,13 @@ internal class FFreecam
     private readonly GameObject? physicalStuff;
     private readonly GameObject? UIRoot;
     private DateTime lastImmobilizedPlayer;
-    private RaycastHit oldInfo;
-    private int lerpFrameCount = 0;
+    private RaycastHit lastRayCastHit;
     private float timeLerped = 0;
     private const float timeToLerpDistance = 0.5f;
+    private CinemachineVirtualCamera? thirdCamera = null;
+    private GameObject? thirdCameraHolder = null;
+    private CinemachineTransposer? body = null;
+    private Transform? thirdCameraPosition = null;
     //private AudioListener audioListener;
 
     private readonly MelonPreferences_Category settings = default!;
@@ -163,7 +167,6 @@ internal class FFreecam
     private const float WindowWidth = 0.25f;
     private const float WindowHeight = 0.3f;
     private const float WindowHeightExtended = WindowHeight + 0.405f;
-    private const int maxLerpCount = 50;
 
     public FFreecam(string sceneName)
     {
@@ -270,10 +273,6 @@ internal class FFreecam
         MelonLogger.Msg("...Done");
 
         PhysicsLayerMask = LayerMask.GetMask("Default", "Ground", "InteractiveItems", "Characters", "Walls");
-
-        ThirdPersonMode.Value = ThirdPersonMode.Value;
-        UIEnabled.Value = UIEnabled.Value;
-        GameCameraHidden.Value = GameCameraHidden.Value;
     }
 
     ~FFreecam()
@@ -332,6 +331,8 @@ internal class FFreecam
     private void TryImmobilizePlayer()
     {
         if (player is null) return;
+        if (player._controlManager is null) return;
+        if (player._controlManager.PlayerInput is null) return;
         if (inCamera && !ThirdPersonMode.Value)
             player._controlManager.PlayerInput.DeactivateInput();
         else
@@ -368,9 +369,12 @@ internal class FFreecam
             {
                 //MelonLogger.Msg($"Moved {item.name} to the top left.");
                 if (GameCameraHidden.Value)
-                    item.rect = new Rect(0f, 0.99f, 0.01f, 0.01f);
+                    item.enabled = false;
                 else
+                {
                     item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                    item.enabled = true;
+                }
             }
         }
 
@@ -385,6 +389,11 @@ internal class FFreecam
             Screen.lockCursor = true;
         }
 
+        if (ThirdPersonMode.Value && thirdCamera is null)
+        {
+            SetupThirdPersonCamera();
+        }
+
         isEnabled = true;
         AutostartFreecam.Value = isEnabled;
         MelonLogger.Msg("Freecam enabled.");
@@ -395,7 +404,6 @@ internal class FFreecam
         //only move when we are not moving the player
         if (isEnabled && inCamera && camera is not null)
         {
-
             var value = Mouse.current.delta.ReadValue();
 
             if (!ThirdPersonMode.Value || !inGameMain)
@@ -444,106 +452,11 @@ internal class FFreecam
                 camera.transform.set_rotation_Injected(ref newRotation);
                 pinnedRotation.Free();
             }
-            else if (game_camera is not null && ThirdPersonMode.Value && player is not null)
+            else if (game_camera is not null && ThirdPersonMode.Value && player is not null && thirdCamera is not null)
             {
                 //change player camera distance depending on the state
-                if (player.IsCrouching)
-                {
-                    //when we start crouching, save distance so we can lerp away form it
-                    if (ThirdPersonDistance >= DefaultThirdPersonDistance && ThirdPersonDistance > PreLerpPersonDistance)
-                    {
-                        PreLerpPersonDistance = ThirdPersonDistance;
-                        timeLerped = 0.0f;
-                    }
-
-                    if (ThirdPersonDistance > CrouchThirdPersonDistance)
-                    {
-                        ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, CrouchThirdPersonDistance, timeLerped / timeToLerpDistance);
-                        timeLerped += Time.deltaTime;
-                    }
-                }
-                else if (player.Controller.velocity.sqrMagnitude > 10.0f)
-                {
-                    //when we start crouching, save distance so we can lerp away form it
-                    if (ThirdPersonDistance <= DefaultThirdPersonDistance && ThirdPersonDistance < PreLerpPersonDistance)
-                    {
-                        PreLerpPersonDistance = ThirdPersonDistance;
-                        timeLerped = 0.0f;
-                    }
-
-                    if (ThirdPersonDistance < SprintThirdPersonDistance)
-                    {
-                        ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, SprintThirdPersonDistance, timeLerped / timeToLerpDistance);
-                        timeLerped += Time.deltaTime;
-                    }
-                }
-                else
-                {
-                    //when we start crouching, save distance so we can lerp away form it
-                    if ((ThirdPersonDistance < DefaultThirdPersonDistance && ThirdPersonDistance < PreLerpPersonDistance) || (ThirdPersonDistance > DefaultThirdPersonDistance && ThirdPersonDistance > PreLerpPersonDistance))
-                    {
-                        PreLerpPersonDistance = ThirdPersonDistance;
-                        timeLerped = 0.0f;
-                    }
-
-                    if (ThirdPersonDistance != DefaultThirdPersonDistance)
-                    {
-                        ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, DefaultThirdPersonDistance, timeLerped / timeToLerpDistance);
-                        timeLerped += Time.deltaTime;
-                    }
-                }
-
-                game_camera.transform.get_position_Injected(out var playerPos);
-                var potentiallyNewPos = playerPos - ThirdPersonDistance * game_camera.transform.forward + ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * game_camera.transform.right;
-                //check for collision, move freecam pos there
-                var hit = Physics.Raycast(playerPos, potentiallyNewPos - playerPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
-                if (!hit)
-                    playerPos = potentiallyNewPos;
-                else
-                {
-                    playerPos = info.point + (ThirdPersonDistance - info.distance + 0.02f) * camera.transform.forward;
-                }
-                GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
-                camera.transform.set_position_Injected(ref playerPos);
-                pinnedPos.Free();
-
-                game_camera.transform.get_position_Injected(out var gamePos);
-                if (Physics.Raycast(gamePos, game_camera.transform.forward, out info, float.MaxValue, PhysicsLayerMask))
-                {
-                    //only lerp when we detected a jump
-                    //dont lerp if we turn fast enough
-                    if (Mathf.Abs(info.distance - oldInfo.distance) > 1.0f && value.SqrMagnitude() < 500.0f && player.Controller.velocity.sqrMagnitude < 2.5f)
-                    {
-                        if (lerpFrameCount == 0)
-                        {
-                            lerpFrameCount = 1;
-                        }
-                    }
-                    else
-                    { //moving too fast, skip lerp
-                        oldInfo = info;
-                        lerpFrameCount = 0;
-                    }
-
-                    if (lerpFrameCount > 0 && lerpFrameCount < maxLerpCount)
-                    {
-                        lerpFrameCount++;
-                    }
-                    else
-                    {
-                        lerpFrameCount = 0;
-                        oldInfo = info;
-                    }
-
-                    if (lerpFrameCount > 0)
-                    {
-                        //builtin lerp doesnt work?
-                        var vec = oldInfo.point + ((info.point - oldInfo.point) * lerpFrameCount / maxLerpCount);
-                        camera.transform.LookAt(vec);
-                    }
-                    else
-                        camera.transform.LookAt(info.point);
-                }
+                UpdateThirdPersonCameraDistance();
+                UpdateThirdPersonCameraPositions();
             }
             else if (isInitialized && !isEnabled && camera is not null && player is not null)
             {
@@ -552,6 +465,96 @@ internal class FFreecam
                 camera.transform.set_position_Injected(ref playerPos);
                 pinnedPos.Free();
             }
+        }
+    }
+
+    private void UpdateThirdPersonCameraPositions()
+    {
+        if (game_camera is null || !ThirdPersonMode.Value || player is null || thirdCameraPosition is null)
+            return;
+
+        player.Head.transform.get_position_Injected(out var playerPos);
+        var potentiallyNewPos = playerPos - ThirdPersonDistance * game_camera.transform.forward + ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * game_camera.transform.right;
+        //check for collision, move freecam pos there
+        var hit = Physics.Raycast(playerPos, potentiallyNewPos - playerPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
+        if (!hit)
+            playerPos = potentiallyNewPos;
+        else
+        {
+            playerPos = info.point + (ThirdPersonDistance - info.distance + 0.01f) * game_camera.transform.forward;
+        }
+        GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
+        thirdCameraPosition.set_position_Injected(ref playerPos);
+        pinnedPos.Free();
+
+        game_camera.transform.get_position_Injected(out var gamePos);
+        if (Physics.Raycast(gamePos, game_camera.transform.forward, out info, float.MaxValue, PhysicsLayerMask))
+        {
+            if (lastRayCastHit.transform is null)
+                lastRayCastHit = info;
+            var vec = info.point;
+            var handle = GCHandle.Alloc(vec, GCHandleType.Pinned);
+            lastRayCastHit.transform.set_position_Injected(ref vec);
+            handle.Free();
+        }
+    }
+
+    private void UpdateThirdPersonCameraDistance()
+    {
+        if (player is null || body is null)
+            return;
+        if (player.IsCrouching)
+        {
+            //when we start crouching, save distance so we can lerp away form it
+            if (ThirdPersonDistance >= DefaultThirdPersonDistance && ThirdPersonDistance > PreLerpPersonDistance)
+            {
+                PreLerpPersonDistance = ThirdPersonDistance;
+                timeLerped = 0.0f;
+            }
+
+            if (ThirdPersonDistance > CrouchThirdPersonDistance)
+            {
+                ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, CrouchThirdPersonDistance, timeLerped / timeToLerpDistance);
+                timeLerped += Time.deltaTime;
+            }
+        }
+        else if (player.Controller.velocity.sqrMagnitude > 10.0f)
+        {
+            //when we start crouching, save distance so we can lerp away form it
+            if (ThirdPersonDistance <= DefaultThirdPersonDistance && ThirdPersonDistance < PreLerpPersonDistance)
+            {
+                PreLerpPersonDistance = ThirdPersonDistance;
+                timeLerped = 0.0f;
+            }
+
+            if (ThirdPersonDistance < SprintThirdPersonDistance)
+            {
+                ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, SprintThirdPersonDistance, timeLerped / timeToLerpDistance);
+                timeLerped += Time.deltaTime;
+            }
+        }
+        else
+        {
+            //when we start crouching, save distance so we can lerp away form it
+            if ((ThirdPersonDistance < DefaultThirdPersonDistance && ThirdPersonDistance < PreLerpPersonDistance) || (ThirdPersonDistance > DefaultThirdPersonDistance && ThirdPersonDistance > PreLerpPersonDistance))
+            {
+                PreLerpPersonDistance = ThirdPersonDistance;
+                timeLerped = 0.0f;
+            }
+
+            if (ThirdPersonDistance != DefaultThirdPersonDistance)
+            {
+                ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, DefaultThirdPersonDistance, timeLerped / timeToLerpDistance);
+                timeLerped += Time.deltaTime;
+            }
+        }
+
+        if (body.m_FollowOffset.z != -ThirdPersonDistance)
+        {
+            if (RightShoulder.Value)
+                body.m_FollowOffset = new(ThirdPersonDistance / 4, 1.75f, -ThirdPersonDistance);
+            else
+                body.m_FollowOffset = new(-ThirdPersonDistance / 4, 1.75f, -ThirdPersonDistance);
         }
     }
 
@@ -764,24 +767,21 @@ internal class FFreecam
                 {
                     ThirdPersonMode.Value = true;
                     //audioListener.enabled = true;
-                    player.Head.transform.get_position_Injected(out var playerPos);
-                    playerPos -= ThirdPersonDistance * player.Head.transform.forward;
-                    GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
-                    camera.transform.set_position_Injected(ref playerPos);
-                    pinnedPos.Free();
-                    player.Head.transform.get_rotation_Injected(out var playerRot);
-                    GCHandle pinnedRot = GCHandle.Alloc(playerRot, GCHandleType.Pinned);
-                    camera.transform.set_rotation_Injected(ref playerRot);
-                    pinnedRot.Free();
+                    SetupThirdPersonCamera();
                 }
-                else if (Keyboard.current.tKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && ThirdPersonMode.Value)
+                else if (Keyboard.current.tKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && ThirdPersonMode.Value && game_camera is not null)
                 {
                     ThirdPersonMode.Value = false;
+                    if (thirdCameraHolder is not null)
+                        thirdCameraHolder.active = false;
+                    //dont see player head
+                    game_camera.cullingMask &= ~(1 << 18);
                     //audioListener.enabled = false;
                 }
                 //also turn off third person when sex or cutscene starts
                 if (ThirdPersonMode.Value && CutSceneManager.CurrentPlayerScene is not null && Enabled)
                 {
+                    reEnable = true;
                     SetDisabled();
                 }
             }
@@ -800,7 +800,7 @@ internal class FFreecam
                     MelonLogger.Msg("Control moved to the freecam.");
                 }
             }
-            if (Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && !GameCameraHidden.Value)
+            if (!ThirdPersonMode.Value && Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed && !GameCameraHidden.Value)
             {
                 GameCameraHidden.Value = true;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -808,11 +808,11 @@ internal class FFreecam
                     string name = $"{item.gameObject.name}";
                     if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
                     {
-                        item.rect = new(0.0f, 0.99f, 0.01f, 0.01f);
+                        item.enabled = false;
                     }
                 }
             }
-            else if (Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
+            else if (!ThirdPersonMode.Value && Keyboard.current.hKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
             {
                 GameCameraHidden.Value = false;
                 foreach (var item in Object.FindObjectsOfType<Camera>())
@@ -821,14 +821,82 @@ internal class FFreecam
                     if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
                     {
                         item.rect = new Rect(0f, 0.7f, 0.3f, 0.3f);
+                        item.enabled = true;
                     }
                 }
             }
             UpdateMovement();
         }
-        else if (inGameMain && player is not null && ThirdPersonMode.Value && CutSceneManager.CurrentPlayerScene is null)
+        else if (reEnable && inGameMain && player is not null && ThirdPersonMode.Value && CutSceneManager.CurrentPlayerScene is null)
         {
             SetEnabled();
         }
+    }
+
+    private void SetupThirdPersonCamera()
+    {
+        if (thirdCamera is null && player is not null)
+        {
+            thirdCameraHolder ??= new("ThirdPersonCameraHolder");
+            thirdCameraPosition ??= new GameObject("ThirdCameraPositionHolder").transform;
+
+            MelonLogger.Msg("Setting up the third person camera");
+            thirdCamera = thirdCameraHolder.AddComponent<CinemachineVirtualCamera>();
+            thirdCamera.Follow = thirdCameraPosition;
+            thirdCamera.LookAt = lastRayCastHit.transform;
+
+            body = thirdCamera.AddCinemachineComponent<CinemachineTransposer>();
+            var aim = thirdCamera.AddCinemachineComponent<CinemachineComposer>();
+            var noise = thirdCamera.AddCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
+
+            body.m_XDamping = 1.0f;
+            body.m_YDamping = 1.0f;
+            body.m_ZDamping = 1.0f;
+            body.m_BindingMode = CinemachineTransposer.BindingMode.LockToTargetNoRoll;
+
+            body.m_FollowOffset = Vector3.zeroVector;
+
+            aim.m_HorizontalDamping = 1.0f;
+            aim.m_VerticalDamping = 1.0f;
+
+            try
+            {
+                noise.m_NoiseProfile = (NoiseSettings)ScriptableObject.CreateScriptableObjectInstanceFromName("Handheld_wideangle_mild");
+            }
+            catch (System.Exception e)
+            {
+                MelonLogger.Error(e);
+            }
+
+            FinalizeThirdPersonCamSetup();
+        }
+        else
+        {
+            FinalizeThirdPersonCamSetup();
+        }
+    }
+
+    private void FinalizeThirdPersonCamSetup()
+    {
+        if (thirdCameraHolder is null) return;
+        if (camera is null) return;
+        if (game_camera is null) return;
+
+        thirdCameraHolder.active = true;
+        camera.enabled = false;
+        //move cameras back
+        foreach (var item in Object.FindObjectsOfType<Camera>())
+        {
+            string name = $"{item.gameObject.name}";
+            if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
+            {
+                //MelonLogger.Msg($"Moved {item.name} back to fullscreen.");
+                item.rect = new Rect(0, 0, 1, 1);
+                item.enabled = true;
+            }
+        }
+
+        //see player head
+        game_camera.cullingMask |= 1 << 18;
     }
 }
