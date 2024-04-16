@@ -2,7 +2,6 @@
 using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
-using Il2CppInterop.Runtime;
 using MelonLoader;
 using System.IO;
 using System.Reflection;
@@ -130,8 +129,8 @@ internal class FFreecam
     private Camera? game_camera = null;
     private const float defaultSpeed = 2.3f;
     private const float rotRes = 0.15f;
-    private const float DefaultThirdPersonDistance = 2.0f;
-    private const float CrouchThirdPersonDistance = 1.5f;
+    private const float DefaultThirdPersonDistance = 1.7f;
+    private const float CrouchThirdPersonDistance = 1.1f;
     private const float SprintThirdPersonDistance = 3.0f;
     private float ThirdPersonDistance = 2.0f;
     private float PreLerpPersonDistance = 2.0f;
@@ -148,13 +147,13 @@ internal class FFreecam
     private readonly GameObject? physicalStuff;
     private readonly GameObject? UIRoot;
     private DateTime lastImmobilizedPlayer;
-    private RaycastHit lastRayCastHit;
     private float timeLerped = 0;
     private const float timeToLerpDistance = 0.5f;
     private CinemachineVirtualCamera? thirdCamera = null;
     private GameObject? thirdCameraHolder = null;
     private CinemachineTransposer? body = null;
     private Transform? thirdCameraPosition = null;
+    private Transform? thirdCameraLookAtPosition = null;
     //private AudioListener audioListener;
 
     private readonly MelonPreferences_Category settings = default!;
@@ -470,7 +469,7 @@ internal class FFreecam
 
     private void UpdateThirdPersonCameraPositions()
     {
-        if (game_camera is null || !ThirdPersonMode.Value || player is null || thirdCameraPosition is null)
+        if (game_camera is null || !ThirdPersonMode.Value || player is null || thirdCameraPosition is null || thirdCameraLookAtPosition is null)
             return;
 
         player.Head.transform.get_position_Injected(out var playerPos);
@@ -481,22 +480,21 @@ internal class FFreecam
             playerPos = potentiallyNewPos;
         else
         {
-            playerPos = info.point + (ThirdPersonDistance - info.distance + 0.01f) * game_camera.transform.forward;
+            playerPos = info.point + (ThirdPersonDistance - info.distance + 0.02f) * game_camera.transform.forward;
         }
         GCHandle pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
         thirdCameraPosition.set_position_Injected(ref playerPos);
         pinnedPos.Free();
 
-        game_camera.transform.get_position_Injected(out var gamePos);
-        if (Physics.Raycast(gamePos, game_camera.transform.forward, out info, float.MaxValue, PhysicsLayerMask))
+        player.Head.transform.get_position_Injected(out var gamePos);
+        if (Physics.Raycast(gamePos, player.transform.forward, out info, float.MaxValue, PhysicsLayerMask))
         {
-            if (lastRayCastHit.transform is null)
-                lastRayCastHit = info;
             var vec = info.point;
             var handle = GCHandle.Alloc(vec, GCHandleType.Pinned);
-            lastRayCastHit.transform.set_position_Injected(ref vec);
+            thirdCameraLookAtPosition.transform.set_position_Injected(ref vec);
             handle.Free();
         }
+        //thirdCameraPosition.LookAt(lastRayCastHit.transform.position);
     }
 
     private void UpdateThirdPersonCameraDistance()
@@ -547,14 +545,6 @@ internal class FFreecam
                 ThirdPersonDistance = Mathf.Lerp(PreLerpPersonDistance, DefaultThirdPersonDistance, timeLerped / timeToLerpDistance);
                 timeLerped += Time.deltaTime;
             }
-        }
-
-        if (body.m_FollowOffset.z != -ThirdPersonDistance)
-        {
-            if (RightShoulder.Value)
-                body.m_FollowOffset = new(ThirdPersonDistance / 4, 1.75f, -ThirdPersonDistance);
-            else
-                body.m_FollowOffset = new(-ThirdPersonDistance / 4, 1.75f, -ThirdPersonDistance);
         }
     }
 
@@ -777,6 +767,7 @@ internal class FFreecam
                     //dont see player head
                     game_camera.cullingMask &= ~(1 << 18);
                     //audioListener.enabled = false;
+                    SetDisabled();
                 }
                 //also turn off third person when sex or cutscene starts
                 if (ThirdPersonMode.Value && CutSceneManager.CurrentPlayerScene is not null && Enabled)
@@ -839,25 +830,25 @@ internal class FFreecam
         {
             thirdCameraHolder ??= new("ThirdPersonCameraHolder");
             thirdCameraPosition ??= new GameObject("ThirdCameraPositionHolder").transform;
+            thirdCameraLookAtPosition ??= new GameObject("ThirdCameraLookAtHolder").transform;
 
             MelonLogger.Msg("Setting up the third person camera");
             thirdCamera = thirdCameraHolder.AddComponent<CinemachineVirtualCamera>();
             thirdCamera.Follow = thirdCameraPosition;
-            thirdCamera.LookAt = lastRayCastHit.transform;
+            thirdCamera.LookAt = thirdCameraLookAtPosition;
 
             body = thirdCamera.AddCinemachineComponent<CinemachineTransposer>();
-            var aim = thirdCamera.AddCinemachineComponent<CinemachineComposer>();
+            var aim = thirdCamera.AddCinemachineComponent<CinemachineSameAsFollowTarget>();
             var noise = thirdCamera.AddCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
 
-            body.m_XDamping = 1.0f;
-            body.m_YDamping = 1.0f;
-            body.m_ZDamping = 1.0f;
+            body.m_XDamping = 0.5f;
+            body.m_YDamping = 0.5f;
+            body.m_ZDamping = 0.5f;
             body.m_BindingMode = CinemachineTransposer.BindingMode.LockToTargetNoRoll;
 
             body.m_FollowOffset = Vector3.zeroVector;
 
-            aim.m_HorizontalDamping = 1.0f;
-            aim.m_VerticalDamping = 1.0f;
+            aim.m_Damping = 0.75f;
 
             try
             {
