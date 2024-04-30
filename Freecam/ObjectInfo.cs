@@ -21,18 +21,10 @@ public static class ObjectInfo
             MelonLogger.Msg($"{spacer}Components on {t.gameObject.name} ({t.gameObject.GetComponents<MonoBehaviour>().Count} Components)");
             PrintComponents(t.gameObject, "L______");
 
-            string more_indent;
-            if (indent.Length == 1)
-            {
-                more_indent = "L___";
-            }
-            else
-            {
-                more_indent = indent + "____";
-            }
+            string more_indent = indent.Length == 1 ? "L___" : indent + "____";
             for (int i = 0; i < child_count; ++i)
             {
-                var child = t.GetChild(i);
+                Transform child = t.GetChild(i);
                 PrintChildren(child, more_indent);
             }
         }
@@ -45,22 +37,22 @@ public static class ObjectInfo
     {
         if (o.GetComponents<MonoBehaviour>().Count > 0)
         {
-            foreach (var comp in o.GetComponentsInChildren<MonoBehaviour>())
+            foreach (MonoBehaviour comp in o.GetComponentsInChildren<MonoBehaviour>())
             {
-                if (comp != null) MelonLogger.Msg($"{indent}'<{comp.GetType().ToString().Replace("UnityEngine.", "")}>{comp.GetScriptClassName()}' -> Layer [{comp.gameObject.layer}] {LayerMask.LayerToName(comp.gameObject.layer)}");
+                if (comp != null)
+                {
+                    MelonLogger.Msg($"{indent}'<{comp.GetType().ToString().Replace("UnityEngine.", "")}>{comp.GetScriptClassName()}' -> Layer [{comp.gameObject.layer}] {LayerMask.LayerToName(comp.gameObject.layer)}");
+                }
             }
         }
     }
 
-    public static void PrintHierarchy(GameObject obj)
-    {
-        PrintChildren(obj.transform, "*");
-    }
+    public static void PrintHierarchy(GameObject obj) => PrintChildren(obj.transform, "*");
 
     public static void PrintMethods(GameObject obj)
     {
         MelonLogger.Msg($"Member methods for <{obj.GetType().ToString().Replace("UnityEngine.", "")}>{obj.name}");
-        foreach (var method in obj.GetIl2CppType().GetMethods())
+        foreach (Il2CppSystem.Reflection.MethodInfo? method in obj.GetIl2CppType().GetMethods())
         {
             MelonLogger.Msg($" - {method.ToString()}");
         }
@@ -69,7 +61,7 @@ public static class ObjectInfo
     public static void PrintFields(GameObject obj)
     {
         MelonLogger.Msg($"Fields on <{obj.GetType().ToString().Replace("UnityEngine.", "")}>{obj.name}");
-        foreach (var field in obj.GetIl2CppType().GetFields())
+        foreach (Il2CppSystem.Reflection.FieldInfo? field in obj.GetIl2CppType().GetFields())
         {
             MelonLogger.Msg($" - {field.ToString()} ({(field.IsPublic ? "public" : "private")})");
         }
