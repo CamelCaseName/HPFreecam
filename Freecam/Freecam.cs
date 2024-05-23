@@ -3,6 +3,10 @@ using Il2Cpp;
 using Il2CppCinemachine;
 using Il2CppEekCharacterEngine;
 using Il2CppEekCharacterEngine.Interaction;
+using Il2CppEekCharacterEngine.Interface;
+using Il2CppEekEvents;
+using Il2CppEekUI;
+using Il2CppHouseParty.Interface;
 using MelonLoader;
 using System;
 using System.Collections.Generic;
@@ -12,6 +16,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.HID;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
 using DateTime = System.DateTime;
 using Object = UnityEngine.Object;
@@ -161,8 +167,11 @@ internal class FFreecam
     private Transform? thirdCameraPosition = null;
     private Transform? thirdCameraLookAtPosition = null;
     //private AudioListener audioListener;
-    private Dictionary<string, float> interactionDistances = new();
+    private readonly Dictionary<string, float> interactionDistances = new();
     private float oldFOV;
+    private SexualActs currentAct;
+    private Vector3 playerHipPos;
+    private Vector3 lookRotation;
 
     private readonly MelonPreferences_Category settings = default!;
     public static MelonPreferences_Entry<bool> ThirdPersonMode = default!;
@@ -174,6 +183,8 @@ internal class FFreecam
     private const float WindowWidth = 0.25f;
     private const float WindowHeight = 0.3f;
     private const float WindowHeightExtended = WindowHeight + 0.405f;
+
+    //todo when releasing the third person mod use pragmas to seperate out the freecam with all and only third person
 
     public FFreecam(string sceneName)
     {
@@ -296,7 +307,7 @@ internal class FFreecam
     public void OnUpdate()
     {
 
-        if (!Enabled && AutostartFreecam.Value && inGameMain && Object.FindObjectOfType<PlayerCharacter>() is not null)
+        if (!Enabled && AutostartFreecam.Value && inGameMain && Object.FindObjectOfType<PlayerCharacter>() is not null && !ScreenFade.Singleton.IsFadeVisible)
         {
             SetEnabled();
         }
@@ -534,31 +545,53 @@ internal class FFreecam
 
     private void UpdateThirdPersonCameraPositions()
     {
+        //todo allow the camera to rotate around the player whenever the player is still and then snap back behind the player once they start moving
+
         if (game_camera is null || !ThirdPersonMode.Value || player is null || thirdCameraPosition is null || thirdCameraLookAtPosition is null)
         {
             return;
         }
 
-        player.Head.transform.get_position_Injected(out Vector3 playerPos);
-        Vector3 potentiallyNewPos = playerPos - (ThirdPersonDistance * game_camera.transform.forward) + (ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * game_camera.transform.right);
+        if (player.Intimacy.CurrentSexPartner is null && player.Intimacy.CurrentSexualActivity == SexualActs.None && !player.IsLayingDown)
+        {
+            player.Head.transform.get_position_Injected(out playerHipPos);
+        }
+        else if (player.Intimacy.CurrentSexualActivity != currentAct || player.IsLayingDown)
+        {
+            currentAct = player.Intimacy.CurrentSexualActivity;
+            player.puppetHip.get_position_Injected(out playerHipPos);
+        }
+
+        Vector3 potentiallyNewPos = playerHipPos - (ThirdPersonDistance * game_camera.transform.forward) + (ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * game_camera.transform.right);
         //check for collision, move freecam pos there
-        bool hit = Physics.Raycast(playerPos, potentiallyNewPos - playerPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
+        bool hit = Physics.Raycast(playerHipPos, potentiallyNewPos - playerHipPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
 
-        playerPos = !hit ? potentiallyNewPos : info.point + ((ThirdPersonDistance - info.distance + 0.02f) * game_camera.transform.forward);
+        playerHipPos = !hit ? potentiallyNewPos : info.point + ((ThirdPersonDistance - info.distance + 0.02f) * game_camera.transform.forward);
 
-        var pinnedPos = GCHandle.Alloc(playerPos, GCHandleType.Pinned);
-        thirdCameraPosition.set_position_Injected(ref playerPos);
+        var pinnedPos = GCHandle.Alloc(playerHipPos, GCHandleType.Pinned);
+        thirdCameraPosition.set_position_Injected(ref playerHipPos);
         pinnedPos.Free();
 
+        Vector2 value = Mouse.current.delta.ReadValue();
+        game_camera.transform.get_rotation_Injected(out Quaternion oldRotation);
+        lookRotation = new(lookRotation.x - value.x * rotRes, lookRotation.y + value.y * rotRes, 0);
+
+        player.PlayerRootTransform.Rotate(new(0, value.x * rotRes, 0));
+
         player.Head.transform.get_position_Injected(out Vector3 gamePos);
-        if (Physics.Raycast(gamePos, player.transform.forward, out info, float.MaxValue, PhysicsLayerMask))
+        if (Physics.Raycast(gamePos, lookRotation, out info, float.MaxValue, PhysicsLayerMask))
         {
+            MelonLogger.Msg(oldRotation.eulerAngles.x + " " + oldRotation.eulerAngles.y + " " + lookRotation.x + " " + lookRotation.y);
             Vector3 vec = info.point;
             var handle = GCHandle.Alloc(vec, GCHandleType.Pinned);
             thirdCameraLookAtPosition.transform.set_position_Injected(ref vec);
             handle.Free();
+            //thirdCameraPosition.LookAt(info.point);
         }
-        //thirdCameraPosition.LookAt(lastRayCastHit.transform.position);
+        else
+        {
+            MelonLogger.Msg("help");
+        }
     }
 
     private void UpdateThirdPersonCameraDistance()
@@ -932,18 +965,15 @@ internal class FFreecam
         {
             thirdCameraPosition.gameObject.active = true;
         }
-
     }
 
     private void DisableThirdPerson()
     {
-        if (game_camera is null)
+        if (game_camera is null || player is null)
         {
             return;
         }
 
-        //Object.DestroyImmediate(camera.gameObject.GetComponent<EekCamera>());
-        //EekCamera.Singleton = game_camera.gameObject.AddComponent<EekCamera>();
         game_camera.fieldOfView = oldFOV;
 
         ThirdPersonMode.Value = false;
@@ -969,6 +999,10 @@ internal class FFreecam
             //dont see player head, but keep it if we disable for a cutscene
             game_camera.cullingMask &= ~(1 << 18);
         }
+        else
+        {
+            EekCamera.Singleton = game_camera.gameObject.AddComponent<EekCamera>();
+        }
 
         foreach (var item in ItemManager.GetAllItems())
         {
@@ -982,6 +1016,11 @@ internal class FFreecam
                 item.DistanceToInteraction = 2f;
             }
         }
+
+        player.Head.transform.get_position_Injected(out var ret);
+        GCHandle pin = GCHandle.Alloc(ret, GCHandleType.Pinned);
+        game_camera.transform.set_position_Injected(ref ret);
+        pin.Free();
 
         if (Enabled)
         {
@@ -1005,8 +1044,10 @@ internal class FFreecam
 
     private void SetupThirdPersonCamera()
     {
-        if (player is not null)
+        if (player is not null && game_camera is not null)
         {
+            Object.DestroyImmediate(game_camera.gameObject.GetComponent<EekCamera>());
+
             Object.DestroyImmediate(thirdCameraHolder);
             Object.DestroyImmediate(thirdCameraLookAtPosition?.gameObject);
             Object.DestroyImmediate(thirdCameraPosition?.gameObject);
@@ -1020,17 +1061,18 @@ internal class FFreecam
             thirdCamera.LookAt = thirdCameraLookAtPosition;
 
             body = thirdCamera.AddCinemachineComponent<CinemachineTransposer>();
-            CinemachineSameAsFollowTarget aim = thirdCamera.AddCinemachineComponent<CinemachineSameAsFollowTarget>();
+            CinemachineComposer aim = thirdCamera.AddCinemachineComponent<CinemachineComposer>();
             CinemachineBasicMultiChannelPerlin noise = thirdCamera.AddCinemachineComponent<CinemachineBasicMultiChannelPerlin>();
 
             body.m_XDamping = 0.2f;
             body.m_YDamping = 0.2f;
             body.m_ZDamping = 0.2f;
-            body.m_BindingMode = CinemachineTransposer.BindingMode.LockToTargetNoRoll;
+            body.m_BindingMode = CinemachineTransposer.BindingMode.LockToTargetWithWorldUp;
 
             body.m_FollowOffset = Vector3.zeroVector;
 
-            aim.m_Damping = 0.4f;
+            aim.m_HorizontalDamping = 0.4f;
+            aim.m_VerticalDamping = 0.4f;
 
             try
             {
@@ -1077,5 +1119,7 @@ internal class FFreecam
 
         //see player head
         game_camera.cullingMask |= 1 << 18;
+
+        lookRotation = game_camera.transform.forward;
     }
 }
