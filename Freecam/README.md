@@ -34,6 +34,7 @@ Refer to [this document here](https://github.com/0x78f1935/HPMods) for further i
 | ALT + H                | hides the games own camera                                               |
 | ALT + U                | toggles the ui on or off                                                 |
 | W, A, S, D, Ctrl, Space| forward, left, back, right, down, up                                     |
+| Shift                  | Move faster																|
 
 # Impressions
 ![ui in main menu](https://github.com/CamelCaseName/HPFreecam/assets/48067449/01a83c48-b8da-4f56-b64f-4d4be83418ef)

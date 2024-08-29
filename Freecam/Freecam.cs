@@ -385,11 +385,11 @@ internal class FFreecam
         {
             DisableThirdPerson();
             ThirdPersonMode.Value = true;
-            //MelonDebug.Msg("[FREECAM] Third Person Cam disabled.");
+            MelonLogger.Msg("Third Person Cam disabled.");
             return;
         }
 
-        //MelonDebug.Msg("[FREECAM] Freecam disabled.");
+        MelonLogger.Msg("Freecam disabled.");
     }
 
     private void TryImmobilizePlayer()
@@ -553,7 +553,7 @@ internal class FFreecam
 
     public void LateUpdate()
     {
-        if (inGameMain && game_camera is not null && ThirdPersonMode.Value && player is not null && thirdCamera is not null)
+        if (inGameMain && game_camera is not null && ThirdPersonMode.Value && player is not null && thirdCamera is not null && Enabled)
         {
             //change player camera distance depending on the state
             UpdateThirdPersonCameraDistance();
@@ -1093,7 +1093,6 @@ internal class FFreecam
         {
             SetEnabled();
         }
-
 
         rotX = 0;
         rotY = 0;
