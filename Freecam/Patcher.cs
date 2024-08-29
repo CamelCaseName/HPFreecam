@@ -47,7 +47,7 @@ namespace Freecam
             RaycastHit hit = new();
             if (PlayerCharacter.Player.GetProperty(Il2CppEekEvents.InteractiveProperties.PlayerCombatMode))
             {
-                if (!InteractionManager.Singleton.GetInCombatRayCastHit(new(pos, Camera.main.transform.forward), hit))
+                if (!InteractionManager.Singleton.GetInCombatRayCastHit(new(pos, Camera.main.transform.forward), out _))
                 {
                     return false;
                 }
