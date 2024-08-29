@@ -33,6 +33,8 @@ Refer to [this document here](https://github.com/0x78f1935/HPMods) for further i
 | W, A, S, D, Ctrl, Space| forward, left, back, right, down, up                                  |
 
 # Impressions
+![third person mode locking back over the shoulder of the player character](https://github.com/user-attachments/assets/d510e72f-75c8-41bf-a25f-b139abb230a8)
+![third person mode interacting with katherine](https://github.com/user-attachments/assets/a28985b7-f182-4bf8-b136-4e7183809f78)
 ![ui in main menu](https://github.com/CamelCaseName/HPFreecam/assets/48067449/01a83c48-b8da-4f56-b64f-4d4be83418ef)
 ![orthographic view](https://github.com/CamelCaseName/HPFreecam/assets/48067449/82de91f9-e369-4113-9809-ee7c183cde79)
 ![player and characters in hallway](https://github.com/CamelCaseName/HPFreecam/assets/48067449/c3259a49-9d4c-467f-98d3-37545566ba5a)
