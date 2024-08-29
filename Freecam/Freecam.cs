@@ -98,7 +98,7 @@ public class Freecam : MelonMod
             }
             else
             {
-                MelonDebug.Error("domainType got set to null for the AssemblyResolve event was null");
+                //MelonDebug.Error("domainType got set to null for the AssemblyResolve event was null");
                 return;
             }
             if (field is null)
@@ -137,10 +137,9 @@ internal class FFreecam
     private bool inCamera = true;
     private bool isInitialized = false;
     private bool reEnable = false;
+    private bool inSex = false;
     private Camera? camera = null;
     private Camera? game_camera = null;
-    private const float defaultSpeed = 2.3f;
-    private const float rotRes = 0.15f;
     private const float DefaultThirdPersonDistance = 1.7f;
     private const float CrouchThirdPersonDistance = 1.1f;
     private const float SprintThirdPersonDistance = 3.0f;
@@ -149,7 +148,8 @@ internal class FFreecam
     private readonly int PhysicsLayerMask;
     private float rotX = 0f;
     private float rotY = 0f;
-    private float speed = defaultSpeed;
+    private float speed = 0f;
+    private float sexStartTime = 0;
     private PlayerCharacter? player = null;
     private readonly bool inGameMain = false;
     private readonly Canvas? canvas;
@@ -179,6 +179,8 @@ internal class FFreecam
     private readonly MelonPreferences_Entry<bool> UIEnabled = default!;
     private readonly MelonPreferences_Entry<bool> GameCameraHidden = default!;
     private readonly MelonPreferences_Entry<bool> RightShoulder = default!;
+    private readonly MelonPreferences_Entry<float> rotationSpeed = default!;
+    private readonly MelonPreferences_Entry<float> flySpeed = default!;
 
     private const float WindowWidth = 0.25f;
     private const float WindowHeight = 0.3f;
@@ -208,12 +210,22 @@ internal class FFreecam
             ? (MelonPreferences_Entry<bool>)settings.GetEntry(nameof(RightShoulder))
             : settings.CreateEntry(nameof(RightShoulder), true, description: "True: cam over right shoulder. False: cam over left shoulder.");
 
-        MelonDebug.Msg($"[FREECAM] settings: " +
-            $"\n third person mode: {ThirdPersonMode.Value}" +
-            $"\n autostart: {AutostartFreecam.Value}" +
-            $"\n ui enabled: {UIEnabled.Value}" +
-            $"\n game camera hidden: {GameCameraHidden.Value}" +
-            $"\n right shoulder: {RightShoulder.Value}");
+        rotationSpeed = settings.HasEntry(nameof(rotationSpeed))
+            ? (MelonPreferences_Entry<float>)settings.GetEntry(nameof(rotationSpeed))
+            : settings.CreateEntry(nameof(rotationSpeed), 0.15f, description: "rotation speed of the freecam and third person cam");
+
+        flySpeed = settings.HasEntry(nameof(flySpeed))
+            ? (MelonPreferences_Entry<float>)settings.GetEntry(nameof(flySpeed))
+            : settings.CreateEntry(nameof(flySpeed), 2.3f, description: "movement speed of the freecam");
+
+        speed = flySpeed.Value;
+
+        //MelonDebug.Msg($"[FREECAM] settings: " +
+        //    $"\n third person mode: {ThirdPersonMode.Value}" +
+        //    $"\n autostart: {AutostartFreecam.Value}" +
+        //    $"\n ui enabled: {UIEnabled.Value}" +
+        //    $"\n game camera hidden: {GameCameraHidden.Value}" +
+        //    $"\n right shoulder: {RightShoulder.Value}");
 
         foreach (Camera item in Object.FindObjectsOfType<Camera>())
         {
@@ -229,7 +241,7 @@ internal class FFreecam
 
         if (camera is null)
         {
-            MelonDebug.Msg("[FREECAM] could not clone games' camera");
+            //MelonDebug.Msg("[FREECAM] could not clone games' camera");
             return;
         }
         // Canvas
@@ -248,7 +260,7 @@ internal class FFreecam
         text = UIBuilder.CreateLabel(contentHolder, "Freecam info text", "");
         text.fontSize = 12;
 
-        MelonDebug.Msg("[FREECAM] Creating settings for the Camera...");
+        //MelonDebug.Msg("[FREECAM] Creating settings for the Camera...");
 
         UIBuilder.CreateInputField(nameof(camera.allowHDR), contentHolder, camera);
         UIBuilder.CreateInputField(nameof(camera.allowMSAA), contentHolder, camera);
@@ -297,7 +309,7 @@ internal class FFreecam
         UIBuilder.CreateInputField(nameof(camera.orthographic), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.sensorSize), physicalStuff, camera);
         UIBuilder.CreateInputField(nameof(camera.shutterSpeed), physicalStuff, camera);
-        MelonDebug.Msg("[FREECAM] ...Done");
+        //MelonDebug.Msg("[FREECAM] ...Done");
 
         PhysicsLayerMask = LayerMask.GetMask("Default", "Ground", "InteractiveItems", "Characters", "Walls");
     }
@@ -358,7 +370,7 @@ internal class FFreecam
                 string name = $"{item.gameObject.name}";
                 if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
                 {
-                    MelonDebug.Msg($"[FREECAM] Moved {item.name} back to fullscreen.");
+                    //MelonDebug.Msg($"[FREECAM] Moved {item.name} back to fullscreen.");
                     item.rect = new Rect(0, 0, 1, 1);
                     item.enabled = true;
                 }
@@ -373,11 +385,11 @@ internal class FFreecam
         {
             DisableThirdPerson();
             ThirdPersonMode.Value = true;
-            MelonDebug.Msg("[FREECAM] Third Person Cam disabled.");
+            //MelonDebug.Msg("[FREECAM] Third Person Cam disabled.");
             return;
         }
 
-        MelonDebug.Msg("[FREECAM] Freecam disabled.");
+        //MelonDebug.Msg("[FREECAM] Freecam disabled.");
     }
 
     private void TryImmobilizePlayer()
@@ -416,14 +428,14 @@ internal class FFreecam
         {
             if (camera == null || !isInitialized)
             {
-                MelonDebug.Msg("[FREECAM] our camera was null");
+                //MelonDebug.Msg("[FREECAM] our camera was null");
                 foreach (Camera item in Object.FindObjectsOfType<Camera>())
                 {
                     string name = $"{item.gameObject.name}";
                     int count = item.gameObject.GetComponents<MonoBehaviour>().Count;
                     if (name == "Camera" && count > 0)
                     {
-                        MelonDebug.Msg("[FREECAM] got a camera");
+                        //MelonDebug.Msg("[FREECAM] got a camera");
                         game_camera = item;
                         oldFOV = game_camera.fieldOfView;
                         break;
@@ -438,14 +450,14 @@ internal class FFreecam
             {
                 camera.enabled = true;
             }
-            MelonDebug.Msg("[FREECAM] moving screens");
+            //MelonDebug.Msg("[FREECAM] moving screens");
             //move cameras to top left
             foreach (Camera item in Object.FindObjectsOfType<Camera>())
             {
                 string name = $"{item.gameObject.name}";
                 if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
                 {
-                    MelonDebug.Msg($"[FREECAM] Moved {item.name} to the top left.");
+                    //MelonDebug.Msg($"[FREECAM] Moved {item.name} to the top left.");
                     if (GameCameraHidden.Value)
                     {
                         item.enabled = false;
@@ -491,7 +503,7 @@ internal class FFreecam
         {
             Vector2 value = Mouse.current.delta.ReadValue();
 
-            speed = Keyboard.current.leftShiftKey.isPressed ? defaultSpeed * 2.5f : defaultSpeed;
+            speed = Keyboard.current.leftShiftKey.isPressed ? flySpeed.Value * 2.5f : flySpeed.Value;
 
             float dTime = Time.deltaTime;
 
@@ -525,7 +537,7 @@ internal class FFreecam
             camera.transform.get_rotation_Injected(out Quaternion oldRotation);
             rotY += value.x;
             rotX -= value.y;
-            var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotRes * rotX, rotRes * rotY, 0)), 50 * Time.deltaTime);
+            var newRotation = Quaternion.Lerp(oldRotation, Quaternion.Euler(new Vector3(rotationSpeed.Value * rotX, rotationSpeed.Value * rotY, 0)), 50 * Time.deltaTime);
             var pinnedRotation = GCHandle.Alloc(newRotation, GCHandleType.Pinned);
             camera.transform.set_rotation_Injected(ref newRotation);
             pinnedRotation.Free();
@@ -556,23 +568,38 @@ internal class FFreecam
 
     private void UpdateThirdPersonCameraPositions()
     {
-        //todo allow the camera to rotate around the player whenever the player is still and then snap back behind the player once they start moving
-
         if (game_camera is null || !ThirdPersonMode.Value || player is null || thirdCameraPosition is null || thirdCameraRotation is null || thirdCameraLookAtPosition is null)
         {
             return;
         }
 
+        inSex = (Time.time - sexStartTime) >= 2f;
         if (player.Intimacy.CurrentSexPartner is null && player.Intimacy.CurrentSexualActivity == SexualActs.None && !player.IsLayingDown)
         {
             player.Head.transform.get_position_Injected(out playerHipPos);
             currentAct = player.Intimacy.CurrentSexualActivity;
+            inSex = false;
+            //MelonDebug.Msg("[FREECAM] ended sex act");
         }
         else if (player.Intimacy.CurrentSexualActivity != currentAct || player.IsLayingDown)
         {
+            //fopr changing pos
+            inSex = false;
+            sexStartTime = Time.time;
             currentAct = player.Intimacy.CurrentSexualActivity;
             player.puppetHip.get_position_Injected(out playerHipPos);
+            playerHipPos.y += 0.5f;
+            //MelonDebug.Msg("[FREECAM] started new sex act");
         }
+        else if (!inSex && (player.Intimacy.CurrentSexualActivity != SexualActs.None || player.IsLayingDown) && (Time.time - sexStartTime) < 2f)
+        {
+            //starting new
+            currentAct = player.Intimacy.CurrentSexualActivity;
+            player.puppetHip.get_position_Injected(out playerHipPos);
+            playerHipPos.y += 0.5f;
+            //MelonDebug.Msg("[FREECAM] updating position for sex act");
+        }
+
 
         if (!player.FPInput.AllowCameraMovement)
         {
@@ -587,12 +614,16 @@ internal class FFreecam
         thirdCameraRotation.get_rotation_Injected(out Quaternion currentRotation);
         rotY += value.x;
         rotX -= value.y;
-        var newRotation = Quaternion.Lerp(currentRotation, Quaternion.Euler(new Vector3(rotRes / 2 * rotX, rotRes / 2 * rotY, 0)), 50 * Time.deltaTime);
+        var newRotation = Quaternion.Lerp(currentRotation, Quaternion.Euler(new Vector3(rotationSpeed.Value / 2 * rotX, rotationSpeed.Value / 2 * rotY, 0)), 50 * Time.deltaTime);
         var pinnedRotation = GCHandle.Alloc(newRotation, GCHandleType.Pinned);
         thirdCameraRotation.set_rotation_Injected(ref newRotation);
         pinnedRotation.Free();
 
-        Vector3 potentiallyNewPos = playerHipPos - (ThirdPersonDistance * thirdCameraRotation.forward) + (ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * thirdCameraRotation.right);
+        Vector3 potentiallyNewPos = playerHipPos - (ThirdPersonDistance * thirdCameraRotation.forward);
+        if (!inSex)
+        {
+            potentiallyNewPos += (ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * thirdCameraRotation.right);
+        }
         //Vector3 potentiallyNewPos = playerHipPos - (ThirdPersonDistance * game_camera.transform.forward) + (ThirdPersonDistance / (RightShoulder.Value ? 4 : -4) * game_camera.transform.right);
         //check for collision, move freecam pos there
         bool hit = Physics.Raycast(playerHipPos, potentiallyNewPos - playerHipPos, out RaycastHit info, ThirdPersonDistance, PhysicsLayerMask);
@@ -610,21 +641,21 @@ internal class FFreecam
         Vector3 vec;
         if (Physics.Raycast(thirdCameraRotation.position, thirdCameraRotation.forward, out var info2, float.MaxValue, PhysicsLayerMask))
         {
-            //MelonDebug.Msg(thirdCameraRotation.eulerAngles.x + " " + thirdCameraRotation.eulerAngles.y + " " + game_camera.transform.eulerAngles.x + " " + game_camera.transform.eulerAngles.y + " " + info2.transform.name);
+            ////MelonDebug.Msg(thirdCameraRotation.eulerAngles.x + " " + thirdCameraRotation.eulerAngles.y + " " + game_camera.transform.eulerAngles.x + " " + game_camera.transform.eulerAngles.y + " " + info2.transform.name);
 
             vec = info2.point;
             //thirdCameraPosition.LookAt(info.point);
         }
         else
         {
-            //MelonDebug.Msg(thirdCameraRotation.eulerAngles.x + " " + thirdCameraRotation.eulerAngles.y + " " + game_camera.transform.eulerAngles.x + " " + game_camera.transform.eulerAngles.y);
+            ////MelonDebug.Msg(thirdCameraRotation.eulerAngles.x + " " + thirdCameraRotation.eulerAngles.y + " " + game_camera.transform.eulerAngles.x + " " + game_camera.transform.eulerAngles.y);
             vec = thirdCameraRotation.position + (4 * thirdCameraRotation.forward);
         }
         var handle = GCHandle.Alloc(vec, GCHandleType.Pinned);
-
+        thirdCameraLookAtPosition.transform.set_position_Injected(ref vec);
         if (player.Motion.IsCurrentlyMoving && player.Intimacy.CurrentSexualActivity == SexualActs.None)
         {
-            player.Rotation.RotateTowardDirection(vec);
+            player.Rotation.RotateTowardDirection(thirdCameraRotation.forward);
         }
         handle.Free();
     }
@@ -690,7 +721,7 @@ internal class FFreecam
         {
             if (Keyboard.current.fKey.wasPressedThisFrame && Keyboard.current.leftAltKey.isPressed)
             {
-                MelonDebug.Msg("[FREECAM] toggling");
+                //MelonDebug.Msg("[FREECAM] toggling");
                 if (Enabled)
                 {
                     SetDisabled();
@@ -765,32 +796,32 @@ internal class FFreecam
     {
         if (game_camera != null)
         {
-            MelonDebug.Msg("[FREECAM] initializing");
-            MelonDebug.Msg("[FREECAM] yoinking games camera");
+            //MelonDebug.Msg("[FREECAM] initializing");
+            //MelonDebug.Msg("[FREECAM] yoinking games camera");
             //ObjectInfo.PrintHierarchy(game_camera.gameObject);
             camera = Object.Instantiate(game_camera.gameObject).GetComponent<Camera>();
-            //MelonDebug.Msg($"[FREECAM] {camera.name}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.name}");
             camera.depth = -2;
-            //MelonDebug.Msg($"[FREECAM] {camera.depth}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.depth}");
             //camera.cullingMask |= 1 << 18; //see head
             camera.cullingMask |= ~0; //see all
-                                      //MelonDebug.Msg($"[FREECAM] {camera.cullingMask}");
+                                      ////MelonDebug.Msg($"[FREECAM] {camera.cullingMask}");
             camera.name = "Freecam Camera";
-            //MelonDebug.Msg($"[FREECAM] {camera.name}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.name}");
             camera.enabled = false;
-            //MelonDebug.Msg($"[FREECAM] {camera.enabled}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.enabled}");
             camera.gameObject.layer = 3; //0 is default
-                                         //MelonDebug.Msg($"[FREECAM] {camera.gameObject.layer}");
+                                         ////MelonDebug.Msg($"[FREECAM] {camera.gameObject.layer}");
             camera.cameraType = CameraType.Game;
-            //MelonDebug.Msg($"[FREECAM] {camera.cameraType}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.cameraType}");
             camera.hideFlags = HideFlags.HideAndDontSave;
             var rect = new Rect(0f, 0f, 1f, 1f);
             var handle = GCHandle.Alloc(rect, GCHandleType.Pinned);
             camera.set_rect_Injected(ref rect);//starting left, bottom, extend up, right
             handle.Free();
-            //MelonDebug.Msg($"[FREECAM] {camera.hideFlags}");
+            ////MelonDebug.Msg($"[FREECAM] {camera.hideFlags}");
 
-            MelonDebug.Msg("[FREECAM] deleting camera child objects");
+            //MelonDebug.Msg("[FREECAM] deleting camera child objects");
             for (int i = 0; i < camera.transform.childCount; i++)
             {
                 Transform child = camera.transform.GetChild(i);
@@ -808,57 +839,57 @@ internal class FFreecam
 
             isInitialized = camera.gameObject.GetComponents<MonoBehaviour>().Count > 0;
             //ObjectInfo.PrintHierarchy(camera.gameObject);
-            MelonDebug.Msg("[FREECAM] our own camera was initialized");
+            //MelonDebug.Msg("[FREECAM] our own camera was initialized");
 
             //todo use input system
             //idea: get the actions once, then check their state each update, like we used to do with the keyboards. this will allow us to use controllers as well though. activating with ?
 
             //PlayerControlManager.add_OnInput_Crouch(new System.Action(() => { }));
 
-            //MelonDebug.Msg("[FREECAM] Actions");
+            ////MelonDebug.Msg("[FREECAM] Actions");
             //foreach (var item in PlayerControlManager.Singleton._playerMap.actions)
             //{
-            //    MelonDebug.Msg($"[FREECAM]   {item.name} {item.type}");
-            //    MelonDebug.Msg("[FREECAM]   Controls");
+            //    //MelonDebug.Msg($"[FREECAM]   {item.name} {item.type}");
+            //    //MelonDebug.Msg("[FREECAM]   Controls");
             //    foreach (var ctl in item.controls)
             //    {
-            //        MelonDebug.Msg($"[FREECAM]     {ctl.m_Name} {ctl.displayName}");
+            //        //MelonDebug.Msg($"[FREECAM]     {ctl.m_Name} {ctl.displayName}");
             //    }
-            //    MelonDebug.Msg("[FREECAM]   Bindings");
+            //    //MelonDebug.Msg("[FREECAM]   Bindings");
             //    foreach (var ctl in item.bindings)
             //    {
-            //        MelonDebug.Msg($"[FREECAM]     {ctl.interactions} {ctl.processors} {ctl.name}");
+            //        //MelonDebug.Msg($"[FREECAM]     {ctl.interactions} {ctl.processors} {ctl.name}");
             //    }
-            //    MelonDebug.Msg("[FREECAM]   Processors");
-            //    MelonDebug.Msg("[FREECAM]     " + item.processors);
+            //    //MelonDebug.Msg("[FREECAM]   Processors");
+            //    //MelonDebug.Msg("[FREECAM]     " + item.processors);
             //}
 
-            //MelonDebug.Msg("[FREECAM] Bindings");
+            ////MelonDebug.Msg("[FREECAM] Bindings");
             //foreach (var item in PlayerControlManager.Singleton._playerMap.bindings)
             //{
-            //    MelonDebug.Msg("[FREECAM]   " + item.groups);
-            //    MelonDebug.Msg("[FREECAM]   " + item.action);
-            //    MelonDebug.Msg("[FREECAM]   " + item.interactions);
-            //    MelonDebug.Msg("[FREECAM]   " + item.name);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.groups);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.action);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.interactions);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.name);
             //}
-            //MelonDebug.Msg("[FREECAM] Control Schemes");
+            ////MelonDebug.Msg("[FREECAM] Control Schemes");
             //foreach (var item in PlayerControlManager.Singleton._playerMap.controlSchemes)
             //{
-            //    MelonDebug.Msg("[FREECAM]   " + item.bindingGroup);
-            //    MelonDebug.Msg("[FREECAM]   " + item.name);
-            //    MelonDebug.Msg("[FREECAM]   Device Requirements");
+            //    //MelonDebug.Msg("[FREECAM]   " + item.bindingGroup);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.name);
+            //    //MelonDebug.Msg("[FREECAM]   Device Requirements");
             //    foreach (var ctl in item.deviceRequirements)
             //    {
-            //        MelonDebug.Msg($"[FREECAM]     {ctl.controlPath} {ctl.isOptional} {ctl.isAND} {ctl.isOR}");
+            //        //MelonDebug.Msg($"[FREECAM]     {ctl.controlPath} {ctl.isOptional} {ctl.isAND} {ctl.isOR}");
             //    }
 
             //}
-            //MelonDebug.Msg("[FREECAM] Devices");
+            ////MelonDebug.Msg("[FREECAM] Devices");
             //foreach (var item in PlayerControlManager.Singleton._playerMap.devices.Value)
             //{
-            //    MelonDebug.Msg("[FREECAM]   " + item.name);
-            //    MelonDebug.Msg("[FREECAM]   " + item.displayName);
-            //    MelonDebug.Msg("[FREECAM]   " + item.layout);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.name);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.displayName);
+            //    //MelonDebug.Msg("[FREECAM]   " + item.layout);
             //}
             return true;
         }
@@ -1098,7 +1129,7 @@ internal class FFreecam
             thirdCameraRotation = new GameObject("ThirdCameraRotationHolder").transform;
             thirdCameraLookAtPosition = new GameObject("ThirdCameraLookAtHolder").transform;
 
-            //MelonDebug.Msg("[FREECAM] Setting up the third person camera");
+            ////MelonDebug.Msg("[FREECAM] Setting up the third person camera");
             thirdCamera = thirdCameraHolder.AddComponent<CinemachineVirtualCamera>();
             thirdCamera.Follow = thirdCameraPosition;
             thirdCamera.LookAt = thirdCameraLookAtPosition;
@@ -1158,7 +1189,7 @@ internal class FFreecam
             string name = $"{item.gameObject.name}";
             if (name == "Camera" || name == "MainCamera" || name == "Main Camera" || name.StartsWith("CM_"))
             {
-                //MelonDebug.Msg($"[FREECAM] Moved {item.name} back to fullscreen.");
+                ////MelonDebug.Msg($"[FREECAM] Moved {item.name} back to fullscreen.");
                 item.rect = new Rect(0, 0, 1, 1);
                 item.enabled = true;
             }
@@ -1168,8 +1199,7 @@ internal class FFreecam
         game_camera.cullingMask |= 1 << 18;
 
         thirdCameraRotation.rotation.SetEulerAngles(game_camera.transform.forward);
-        thirdCameraRotation.rotation.SetEulerAngles(thirdCameraRotation.rotation.eulerAngles.x, thirdCameraRotation.rotation.eulerAngles.y, 0);
         rotX = 0;
-        rotY = 0;
+        rotY = 180;
     }
 }

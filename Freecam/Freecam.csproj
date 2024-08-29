@@ -26,8 +26,10 @@
 	    <Private>False</Private>
 	  </Reference>
 	  <Reference Include="HPUI">
-	    <HintPath>..\..\HPUI\bin\Release\net6.0\HPUI.dll</HintPath>
-	    <Private>False</Private>
+	    <HintPath>Resources\HPUI.dll</HintPath>
+	    <SpecificVersion>False</SpecificVersion>
+		<Version>1.1.0.0</Version>
+		<Private>False</Private>
 	  </Reference>
 	  <Reference Include="Il2CppCinemachine">
 	    <HintPath>G:\SteamLibrary\steamapps\common\House Party\MelonLoader\Il2CppAssemblies\Il2CppCinemachine.dll</HintPath>

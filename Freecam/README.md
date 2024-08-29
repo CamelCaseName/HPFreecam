@@ -1,8 +1,11 @@
 # HPFreecam
-##### The freecam mod for House Party by Eek! Games (with third person and orthographic mode!)
+##### The freecam mod for House Party by Eek! Games (now with third person and orthographic mode!)
 <hr>
 
 Get it [here](https://github.com/CamelCaseName/HPFreecam/releases/latest). 
+
+You can use the freecam itself to take nice pictures and whatnot (TAB[defaut] to disable the ingame UI).
+To use third person mode, you need to activate the freecam using alt+f, then the third person camera using alt+t. This setting will be saved, so whenever you start the game from now on, you'll start in third person mode.
 
 ## QuickStart MelonLoader
 
