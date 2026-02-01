@@ -43,18 +43,17 @@ namespace Freecam
             InteractionManager.Singleton.ResetAllFocusTargets();
             //MelonLogger.Msg("reset focus");
 
-            Camera.main.transform.get_position_Injected(out Vector3 pos);
             RaycastHit hit = new();
             if (PlayerCharacter.Player.GetProperty(Il2CppEekEvents.InteractiveProperties.PlayerCombatMode))
             {
-                if (!InteractionManager.Singleton.GetInCombatRayCastHit(new(pos, Camera.main.transform.forward), out _))
+                if (!InteractionManager.Singleton.GetInCombatRayCastHit(new(Camera.main.transform.position, Camera.main.transform.forward), out _))
                 {
                     return false;
                 }
             }
             else
             {
-                if (!Physics.Raycast(pos, Camera.main.transform.forward, out hit, maxDistance, InteractionManager.Singleton._primaryIMgrMask))
+                if (!Physics.Raycast(Camera.main.transform.position, Camera.main.transform.forward, out hit, maxDistance, InteractionManager.Singleton._primaryIMgrMask))
                 {
                     return false;
                 }
@@ -120,7 +119,10 @@ namespace Freecam
                 {
                     npc ??= t.parent.gameObject.GetComponentInChildren<CharacterInteraction>();
                     if (npc is not null)
+                    {
                         break;
+                    }
+
                     t = t.parent;
                 }
 
