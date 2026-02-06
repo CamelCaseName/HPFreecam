@@ -74,15 +74,12 @@ public class Freecam : MelonMod
             var context = new AssemblyLoadContext(name, false);
             MelonLogger.Warning($"Loaded {args.Name} from our embedded resources, saving to userlibs for next time");
             string path = Path.Combine(Directory.GetParent(Assembly.GetExecutingAssembly()?.Location!)!.Parent!.FullName, "UserLibs", args.Name[..args.Name.IndexOf(',')] + ".dll");
-            foreach (PropertyInfo field in typeof(Properties.Resources).GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
-            {
-                if (field.Name == args.Name[..args.Name.IndexOf(',')])
-                {
-                    File.WriteAllBytes(path, (byte[])field.GetValue(null)!);
 
-                    return context.LoadFromStream(str);
-                }
-            }
+            FileStream fstr = new(path, FileMode.Create);
+            str.CopyTo(fstr);
+            fstr.Close();
+            str.Seek(0, SeekOrigin.Begin);
+            return context.LoadFromStream(str);
         }
         return null!;
     }
