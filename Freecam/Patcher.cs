@@ -153,7 +153,7 @@ namespace Freecam
             //MelonLogger.Msg("set hit points");
 
             if (interactive is null
-                || !interactive.HasInteractions(GameManager._activeStory))
+                || !interactive.HasInteractions(GameManager._activeStory, false))
             {
                 return false;
             }
